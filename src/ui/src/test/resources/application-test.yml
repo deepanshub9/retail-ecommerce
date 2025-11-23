@@ -1,0 +1,33 @@
+# Test configuration for UI service
+spring:
+  profiles:
+    active: test
+
+# Mock service endpoints for testing
+endpoints:
+  catalog: http://localhost:8081
+  cart: http://localhost:8082
+  checkout: http://localhost:8083
+  orders: http://localhost:8084
+
+# Disable external integrations during testing
+chat:
+  provider: mock
+
+# Logging configuration for tests
+logging:
+  level:
+    com.amazon.sample.ui: DEBUG
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Actuator configuration for testing
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+  endpoint:
+    health:
+      show-details: always
