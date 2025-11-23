@@ -22,68 +22,12 @@ module "eks_addons" {
   }
 
   # =============================================================================
-  # NGINX INGRESS CONTROLLER - Load Balancing and Routing
+  # AWS GATEWAY API CONTROLLER - Modern Load Balancing and Routing
   # =============================================================================
-  enable_ingress_nginx = true
-  ingress_nginx = {
+  enable_aws_gateway_api_controller = true
+  aws_gateway_api_controller = {
     most_recent = true
-    namespace   = "ingress-nginx"
-    
-    # Basic configuration
-    set = [
-      {
-        name  = "controller.service.type"
-        value = "LoadBalancer"
-      },
-      {
-        name  = "controller.service.externalTrafficPolicy"
-        value = "Local"
-      },
-      {
-        name  = "controller.resources.requests.cpu"
-        value = "100m"
-      },
-      {
-        name  = "controller.resources.requests.memory"
-        value = "128Mi"
-      },
-      {
-        name  = "controller.resources.limits.cpu"
-        value = "200m"
-      },
-      {
-        name  = "controller.resources.limits.memory"
-        value = "256Mi"
-      }
-    ]
-    
-    # AWS Load Balancer specific annotations
-    set_sensitive = [
-      {
-        name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-scheme"
-        value = "internet-facing"
-      },
-      {
-        name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-type"
-        value = "nlb"
-      },
-      {
-        name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-nlb-target-type"
-        value = "instance"
-      },
-      {
-        name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-health-check-path"
-        value = "/healthz"
-      },
-      {
-        name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-health-check-port"
-        value = "10254"
-      },
-      {
-        name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-health-check-protocol"
-        value = "HTTP"
-      }
-    ]
+    namespace   = "aws-gateway-system"
   }
 
   # =============================================================================

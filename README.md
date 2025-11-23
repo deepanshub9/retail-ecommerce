@@ -30,6 +30,7 @@ This is a sample application designed to illustrate various concepts related to 
 - [GitOps Workflow](#gitops-workflow)
 - [EKS Auto Mode](#eks-auto-mode)
 - [Infrastructure Components](#infrastructure-components)
+- [Gateway API Migration](#gateway-api-migration)
 - [CI/CD Pipeline](#cicd-pipeline)
 - [Monitoring and Observability](#monitoring-and-observability)
 - [Cleanup](https://github.com/LondheShubham153/retail-store-sample-app/blob/main/README.md#step-12-cleanup)
@@ -74,7 +75,31 @@ The Infrastructure Architecture follows cloud-native best practices:
 
 ![EKS](docs/images/EKS.gif)
 
+## Gateway API Migration
 
+🚀 **This project now uses Kubernetes Gateway API instead of NGINX Ingress Controller!**
+
+The Gateway API is the successor to the Kubernetes Ingress API, providing:
+- **Role-oriented design**: Separate infrastructure (Gateway) from application routing (HTTPRoute)
+- **More expressive**: Advanced routing, header manipulation, traffic splitting
+- **Vendor agnostic**: Standard API across AWS, GCP, Azure, and more
+- **Future-proof**: Official Kubernetes API (v1 stable)
+
+### Key Changes
+
+**Infrastructure (Terraform):**
+- ✅ AWS Gateway API Controller (using Amazon VPC Lattice)
+- ❌ NGINX Ingress Controller (removed)
+
+**Application (Kubernetes):**
+- ✅ Gateway + HTTPRoute resources
+- 🔄 Legacy Ingress resources (available but disabled by default)
+
+### Migration Guide
+
+For detailed migration instructions, troubleshooting, and advanced features, see:
+- [📖 Gateway API Migration Guide](./GATEWAY_API_MIGRATION.md)
+- [📂 Gateway API Resources](./k8s/gateway-api/)
 
 ## Quick Start
 

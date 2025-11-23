@@ -81,7 +81,33 @@ app:
     openai:
       baseUrl: ""
       # apiKey: ""
-## Ingress for NGINX Ingress Controller
+## Gateway API Configuration (Modern, Cloud-Native)
+gateway:
+  enabled: true
+  gatewayName: "retail-store-gateway"
+  namespace: "default"
+  sectionName: "http"  # Use HTTP listener for direct access
+  hostnames: []
+  annotations: {}
+gateways:
+  # Direct access via HTTP (no hostname restriction)
+  - name: direct
+    gatewayName: "retail-store-gateway"
+    namespace: "default"
+    sectionName: "http"
+    hostnames: []
+    annotations: {}
+  # Domain-based access with HTTPS
+  - name: domain
+    gatewayName: "retail-store-gateway"
+    namespace: "default"
+    sectionName: "https"
+    hostnames:
+      - retail-store.trainwithshubham.com
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+
+## Legacy Ingress for NGINX Ingress Controller (Deprecated - Use Gateway API)
 ingress:
   enabled: false
   className: "nginx"
