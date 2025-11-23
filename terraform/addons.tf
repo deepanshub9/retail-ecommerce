@@ -35,11 +35,11 @@ module "eks_addons" {
   # =============================================================================
   # Uncomment below to enable monitoring (increases costs)
 
-  # enable_kube_prometheus_stack = var.enable_monitoring
-  # kube_prometheus_stack = {
-  #   most_recent = true
-  #   namespace   = "monitoring"
-  # }
+  enable_kube_prometheus_stack = var.enable_monitoring
+  kube_prometheus_stack = {
+    most_recent = true
+    namespace   = "monitoring"
+  }
 
   depends_on = [module.retail_app_eks]
 }
