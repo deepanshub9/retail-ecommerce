@@ -1,5 +1,5 @@
 {{- if and .Values.gateway.enabled .Values.gateways }}
-  {{- fail "Cannot set both gateway.enabled and gateways" }}
+  {{- fail "Cannot set both gateway.enabled and gateways. Use gateway.enabled=true for single gateway configuration, or set gateways[] array for multiple HTTPRoutes with different configurations." }}
 {{- end }}
 {{- if .Values.gateway.enabled -}}
 {{- $fullName := include "ui.fullname" . -}}
