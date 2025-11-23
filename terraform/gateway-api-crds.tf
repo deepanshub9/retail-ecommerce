@@ -10,19 +10,16 @@ resource "null_resource" "install_gateway_api_crds" {
       export KUBECONFIG=${path.module}/.kubeconfig
       kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.0.0/standard-install.yaml
     EOT
-
-    when = create
   }
 
   provisioner "local-exec" {
+    when    = destroy
     command = <<-EOT
-      aws eks update-kubeconfig --region ${var.aws_region} --name ${module.retail_app_eks.cluster_name} --kubeconfig ${path.module}/.kubeconfig
+      aws eks update-kubeconfig --region ${self.triggers.region} --name ${self.triggers.cluster_name} --kubeconfig ${path.module}/.kubeconfig
       export KUBECONFIG=${path.module}/.kubeconfig
       kubectl delete -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.0.0/standard-install.yaml || true
       rm -f ${path.module}/.kubeconfig
     EOT
-
-    when = destroy
   }
 
   depends_on = [module.retail_app_eks]
@@ -54,6 +51,12 @@ resource "null_resource" "verify_gateway_api_crds" {
       
       echo "Gateway API CRDs verified successfully!"
     EOT
+  }
+
+  triggers = {
+    cluster_name = module.retail_app_eks.cluster_name
+    region       = var.aws_region
+    crds_hash    = time_sleep.wait_for_gateway_crds.id
   }
 
   depends_on = [time_sleep.wait_for_gateway_crds]

@@ -2,6 +2,8 @@
 
 ## What Was Fixed
 
+
+
 The Gateway API CRDs error has been resolved by:
 
 1. **Created `gateway-api-crds.tf`** - Installs Gateway API CRDs before any Gateway resources
