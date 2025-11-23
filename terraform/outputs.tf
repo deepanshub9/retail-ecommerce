@@ -94,14 +94,24 @@ output "argocd_admin_password" {
 # APPLICATION ACCESS
 # =============================================================================
 
-output "ingress_nginx_loadbalancer" {
-  description = "Command to get the LoadBalancer URL for accessing applications"
-  value       = "kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'"
+output "gateway_api_address" {
+  description = "Command to get the Gateway API address for accessing applications"
+  value       = "kubectl get gateway retail-store-gateway -n default -o jsonpath='{.status.addresses[0].value}'"
 }
 
 output "retail_store_url" {
   description = "Command to get the retail store application URL"
-  value       = "echo 'http://'$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+  value       = "echo 'http://'$(kubectl get gateway retail-store-gateway -n default -o jsonpath='{.status.addresses[0].value}')"
+}
+
+output "gateway_status" {
+  description = "Command to check Gateway status"
+  value       = "kubectl get gateway retail-store-gateway -n default"
+}
+
+output "httproute_status" {
+  description = "Command to check HTTPRoute status"
+  value       = "kubectl get httproute -n default"
 }
 
 # =============================================================================
@@ -113,9 +123,12 @@ output "useful_commands" {
   value = {
     get_nodes           = "kubectl get nodes"
     get_pods_all        = "kubectl get pods -A"
-    get_retail_store    = "kubectl get pods -n retail-store"
+    get_retail_store    = "kubectl get pods -n default"
     argocd_apps         = "kubectl get applications -n ${var.argocd_namespace}"
-    ingress_status      = "kubectl get ingress -A"
+    gateway_status      = "kubectl get gateway -A"
+    httproute_status    = "kubectl get httproute -A"
+    gateway_controller  = "kubectl get pods -n aws-gateway-system"
     describe_cluster    = "kubectl cluster-info"
+    validate_gateway    = "./k8s/gateway-api/validate.sh"
   }
 }

@@ -69,6 +69,23 @@ helm upgrade --install retail-store-ui ./src/ui/chart \
 
 ## Verification
 
+### Automated Validation
+
+Run the validation script to check all Gateway API components:
+```bash
+./k8s/gateway-api/validate.sh
+```
+
+This script checks:
+- Gateway API CRDs installation
+- AWS Gateway API Controller status
+- GatewayClass configuration
+- Gateway status and address
+- HTTPRoute resources
+- cert-manager integration
+
+### Manual Verification
+
 Check Gateway status:
 ```bash
 kubectl get gateway retail-store-gateway -n default
