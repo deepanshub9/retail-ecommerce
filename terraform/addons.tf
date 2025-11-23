@@ -50,8 +50,11 @@ module "eks_addons" {
 
 # Wait for Gateway API Controller to be ready
 resource "time_sleep" "wait_for_gateway_controller" {
-  create_duration = "60s"
-  depends_on      = [module.eks_addons]
+  create_duration = "90s"
+  depends_on = [
+    module.eks_addons,
+    null_resource.verify_gateway_api_crds
+  ]
 }
 
 # Create GatewayClass for AWS VPC Lattice

@@ -9,6 +9,7 @@ reports
 env
 oss-output
 kubeconfig_*
+.kubeconfig
 .idea
 node_modules
 dist
