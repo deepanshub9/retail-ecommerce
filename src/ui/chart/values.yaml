@@ -81,7 +81,20 @@ app:
     openai:
       baseUrl: ""
       # apiKey: ""
-## Ingress for NGINX Ingress Controller
+## Gateway API Configuration (RECOMMENDED - Modern K8s Routing)
+gateway:
+  enabled: true
+  annotations: {}
+  # Reference to the Gateway resource (created by platform team)
+  parentRefs:
+    - name: retail-store-gateway
+      namespace: retail-store
+  # Optional: Specify hostnames for domain-based routing
+  hostnames:
+    []
+    # - retail-store.trainwithshubham.com
+
+## Ingress for NGINX Ingress Controller (DEPRECATED - Use Gateway API instead)
 ingress:
   enabled: false
   className: "nginx"

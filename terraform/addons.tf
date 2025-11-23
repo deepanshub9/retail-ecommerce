@@ -22,89 +22,100 @@ module "eks_addons" {
   }
 
   # =============================================================================
-  # NGINX INGRESS CONTROLLER - Load Balancing and Routing
+  # AWS GATEWAY API CONTROLLER - Modern Load Balancing and Routing
   # =============================================================================
-  enable_ingress_nginx = true
-  ingress_nginx = {
+  enable_aws_gateway_api_controller = true
+  aws_gateway_api_controller = {
     most_recent = true
-    namespace   = "ingress-nginx"
-    
-    # Basic configuration
-    set = [
-      {
-        name  = "controller.service.type"
-        value = "LoadBalancer"
-      },
-      {
-        name  = "controller.service.externalTrafficPolicy"
-        value = "Local"
-      },
-      {
-        name  = "controller.resources.requests.cpu"
-        value = "100m"
-      },
-      {
-        name  = "controller.resources.requests.memory"
-        value = "128Mi"
-      },
-      {
-        name  = "controller.resources.limits.cpu"
-        value = "200m"
-      },
-      {
-        name  = "controller.resources.limits.memory"
-        value = "256Mi"
-      }
-    ]
-    
-    # AWS Load Balancer specific annotations
-    set_sensitive = [
-      {
-        name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-scheme"
-        value = "internet-facing"
-      },
-      {
-        name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-type"
-        value = "nlb"
-      },
-      {
-        name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-nlb-target-type"
-        value = "instance"
-      },
-      {
-        name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-health-check-path"
-        value = "/healthz"
-      },
-      {
-        name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-health-check-port"
-        value = "10254"
-      },
-      {
-        name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-health-check-protocol"
-        value = "HTTP"
-      }
-    ]
+    namespace   = "aws-application-networking-system"
   }
 
   # =============================================================================
   # OPTIONAL: MONITORING STACK
   # =============================================================================
   # Uncomment below to enable monitoring (increases costs)
-  
+
   # enable_kube_prometheus_stack = var.enable_monitoring
   # kube_prometheus_stack = {
   #   most_recent = true
   #   namespace   = "monitoring"
   # }
 
-  # =============================================================================
-  # OPTIONAL: AWS LOAD BALANCER CONTROLLER
-  # =============================================================================
-  # enable_aws_load_balancer_controller = true
-  # aws_load_balancer_controller = {
-  #   most_recent = true
-  #   namespace   = "kube-system"
-  # }
-
   depends_on = [module.retail_app_eks]
+}
+
+# =============================================================================
+# GATEWAY API CRDs AND CONFIGURATION
+# =============================================================================
+
+# Wait for Gateway API Controller to be ready
+resource "time_sleep" "wait_for_gateway_controller" {
+  create_duration = "60s"
+  depends_on      = [module.eks_addons]
+}
+
+# Create GatewayClass for AWS VPC Lattice
+resource "kubectl_manifest" "gateway_class" {
+  yaml_body = <<-YAML
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: GatewayClass
+    metadata:
+      name: amazon-vpc-lattice
+    spec:
+      controllerName: application-networking.k8s.aws/gateway-api-controller
+  YAML
+
+  depends_on = [time_sleep.wait_for_gateway_controller]
+}
+
+# Create Gateway for retail store applications
+resource "kubectl_manifest" "retail_store_gateway" {
+  yaml_body = <<-YAML
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: retail-store-gateway
+      namespace: retail-store
+      annotations:
+        application-networking.k8s.aws/lattice-vpc-association: "true"
+    spec:
+      gatewayClassName: amazon-vpc-lattice
+      listeners:
+      - name: http
+        protocol: HTTP
+        port: 80
+        allowedRoutes:
+          namespaces:
+            from: Same
+  YAML
+
+  depends_on = [
+    kubectl_manifest.gateway_class,
+    kubectl_manifest.argocd_apps
+  ]
+}
+
+# Create HTTPRoute for UI service
+resource "kubectl_manifest" "ui_http_route" {
+  yaml_body = <<-YAML
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: ui-route
+      namespace: retail-store
+    spec:
+      parentRefs:
+      - name: retail-store-gateway
+        namespace: retail-store
+      rules:
+      - matches:
+        - path:
+            type: PathPrefix
+            value: /
+        backendRefs:
+        - name: retail-store-ui
+          port: 80
+  YAML
+
+  depends_on = [kubectl_manifest.retail_store_gateway]
 }

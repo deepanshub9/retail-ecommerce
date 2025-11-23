@@ -91,17 +91,32 @@ output "argocd_admin_password" {
 }
 
 # =============================================================================
-# APPLICATION ACCESS
+# GATEWAY API ACCESS
 # =============================================================================
 
-output "ingress_nginx_loadbalancer" {
-  description = "Command to get the LoadBalancer URL for accessing applications"
-  value       = "kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'"
+output "gateway_status" {
+  description = "Command to get Gateway status"
+  value       = "kubectl get gateway retail-store-gateway -n retail-store -o yaml"
+}
+
+output "gateway_dns" {
+  description = "Command to get Gateway DNS endpoint"
+  value       = "kubectl get gateway retail-store-gateway -n retail-store -o jsonpath='{.status.addresses[0].value}'"
+}
+
+output "http_routes" {
+  description = "Command to list all HTTPRoutes"
+  value       = "kubectl get httproute -n retail-store"
 }
 
 output "retail_store_url" {
   description = "Command to get the retail store application URL"
-  value       = "echo 'http://'$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+  value       = "kubectl get gateway retail-store-gateway -n retail-store -o jsonpath='{.status.addresses[0].value}'"
+}
+
+output "vpc_lattice_services" {
+  description = "Command to list VPC Lattice services"
+  value       = "aws vpc-lattice list-services --region ${var.aws_region}"
 }
 
 # =============================================================================
@@ -111,11 +126,15 @@ output "retail_store_url" {
 output "useful_commands" {
   description = "Useful commands for managing the cluster"
   value = {
-    get_nodes           = "kubectl get nodes"
-    get_pods_all        = "kubectl get pods -A"
-    get_retail_store    = "kubectl get pods -n retail-store"
-    argocd_apps         = "kubectl get applications -n ${var.argocd_namespace}"
-    ingress_status      = "kubectl get ingress -A"
-    describe_cluster    = "kubectl cluster-info"
+    get_nodes            = "kubectl get nodes"
+    get_pods_all         = "kubectl get pods -A"
+    get_retail_store     = "kubectl get pods -n retail-store"
+    argocd_apps          = "kubectl get applications -n ${var.argocd_namespace}"
+    gateway_status       = "kubectl get gateway -A"
+    gateway_classes      = "kubectl get gatewayclass"
+    http_routes          = "kubectl get httproute -A"
+    describe_cluster     = "kubectl cluster-info"
+    vpc_lattice_services = "aws vpc-lattice list-services --region ${var.aws_region}"
+    vpc_lattice_networks = "aws vpc-lattice list-service-networks --region ${var.aws_region}"
   }
 }
