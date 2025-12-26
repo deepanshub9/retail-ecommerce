@@ -6,6 +6,8 @@
 | -------- | --------------- |
 | Java     | Amazon DynamoDB |
 
+<!-- Test commit -->
+
 This service provides an API for storing customer shopping carts. Data is stored in Amazon DynamoDB.
 
 ## Configuration
