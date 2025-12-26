@@ -23,6 +23,7 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
+      app: ${{ steps.changes.outputs.app }}
       cart: ${{ steps.changes.outputs.cart }}
       catalog: ${{ steps.changes.outputs.catalog }}
       checkout: ${{ steps.changes.outputs.checkout }}
@@ -39,6 +40,8 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
+            app:
+              - 'src/app/**'
             cart:
               - 'src/cart/**'
             catalog:
@@ -286,10 +289,32 @@ jobs:
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
 
   # =============================================================================
+  # BUILD - APP (Helm Umbrella Chart)
+  # =============================================================================
+  build-app:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Update Helm dependencies
+        run: helm dependency update
+        working-directory: src/app/chart
+
+      - name: Lint Helm chart
+        run: helm lint .
+        working-directory: src/app/chart
+
+  # =============================================================================
   # SUMMARY
   # =============================================================================
   summary:
-    needs: [build-cart, build-catalog, build-checkout, build-orders, build-ui]
+    needs: [build-app, build-cart, build-catalog, build-checkout, build-orders, build-ui]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -298,6 +323,7 @@ jobs:
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "| Service | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| App | ${{ needs.build-app.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Cart | ${{ needs.build-cart.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Catalog | ${{ needs.build-catalog.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Checkout | ${{ needs.build-checkout.result }} |" >> $GITHUB_STEP_SUMMARY
