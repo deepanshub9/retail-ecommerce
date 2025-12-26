@@ -4,11 +4,10 @@
 
 replicaCount: 1
 image:
-  repository: public.ecr.aws/aws-containers/retail-store-sample-orders
+  repository: 859092166102.dkr.ecr.us-west-2.amazonaws.com/retail-store-orders
   pullPolicy: Always
-  tag: "1.2.2"
-imagePullSecrets:
-  - name: regcred
+  tag: "latest"
+imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 serviceAccount:
@@ -59,16 +58,16 @@ configMap:
   name:
 app:
   persistence:
-    provider: 'in-memory'
-    endpoint: ''
-    database: 'orders'
+    provider: "in-memory"
+    endpoint: ""
+    database: "orders"
     secret:
       create: true
       name: orders-db
       username: orders
       password: ""
   messaging:
-    provider: 'in-memory'
+    provider: "in-memory"
     rabbitmq:
       addresses: []
       secret:

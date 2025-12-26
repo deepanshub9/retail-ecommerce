@@ -14,7 +14,7 @@ on:
 
 env:
   AWS_REGION: us-west-2
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-west-2.amazonaws.com
+  ECR_REGISTRY: 859092166102.dkr.ecr.us-west-2.amazonaws.com
 
 jobs:
   # =============================================================================
@@ -49,6 +49,17 @@ jobs:
               - 'src/orders/**'
             ui:
               - 'src/ui/**'
+
+      - name: Show detected changes
+        run: |
+          echo "## Detected Changes" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Changed |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Cart | ${{ steps.changes.outputs.cart }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Catalog | ${{ steps.changes.outputs.catalog }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Checkout | ${{ steps.changes.outputs.checkout }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Orders | ${{ steps.changes.outputs.orders }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| UI | ${{ steps.changes.outputs.ui }} |" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
   # BUILD AND PUSH - CART SERVICE (Java/Maven)
@@ -94,9 +105,21 @@ jobs:
         run: |
           cd src/cart
           docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest .
+          docker tag ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+
+      - name: Update Helm values with new image tag
+        run: |
+          sed -i 's|tag:.*|tag: "${{ github.sha }}"|' src/cart/chart/values.yaml
+
+      - name: Commit and push updated Helm values
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add src/cart/chart/values.yaml
+          git diff --staged --quiet || git commit -m "chore(cart): update image tag to ${{ github.sha }}"
+          git push
 
   # =============================================================================
   # BUILD AND PUSH - CATALOG SERVICE (Go)
@@ -137,9 +160,21 @@ jobs:
         run: |
           cd src/catalog
           docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest .
+          docker tag ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+
+      - name: Update Helm values with new image tag
+        run: |
+          sed -i 's|tag:.*|tag: "${{ github.sha }}"|' src/catalog/chart/values.yaml
+
+      - name: Commit and push updated Helm values
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add src/catalog/chart/values.yaml
+          git diff --staged --quiet || git commit -m "chore(catalog): update image tag to ${{ github.sha }}"
+          git push
 
   # =============================================================================
   # BUILD AND PUSH - CHECKOUT SERVICE (Node.js)
@@ -156,15 +191,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "yarn"
-          cache-dependency-path: src/checkout/yarn.lock
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: npm install
         working-directory: src/checkout
 
       - name: Build application
-        run: yarn build
+        run: npm run build --if-present
         working-directory: src/checkout
 
       - name: Configure AWS credentials
@@ -185,9 +218,21 @@ jobs:
         run: |
           cd src/checkout
           docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest .
+          docker tag ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+
+      - name: Update Helm values with new image tag
+        run: |
+          sed -i 's|tag:.*|tag: "${{ github.sha }}"|' src/checkout/chart/values.yaml
+
+      - name: Commit and push updated Helm values
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add src/checkout/chart/values.yaml
+          git diff --staged --quiet || git commit -m "chore(checkout): update image tag to ${{ github.sha }}"
+          git push
 
   # =============================================================================
   # BUILD AND PUSH - ORDERS SERVICE (Java/Maven)
@@ -233,9 +278,21 @@ jobs:
         run: |
           cd src/orders
           docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest .
+          docker tag ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+
+      - name: Update Helm values with new image tag
+        run: |
+          sed -i 's|tag:.*|tag: "${{ github.sha }}"|' src/orders/chart/values.yaml
+
+      - name: Commit and push updated Helm values
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add src/orders/chart/values.yaml
+          git diff --staged --quiet || git commit -m "chore(orders): update image tag to ${{ github.sha }}"
+          git push
 
   # =============================================================================
   # BUILD AND PUSH - UI SERVICE (Java/Maven)
@@ -281,25 +338,47 @@ jobs:
         run: |
           cd src/ui
           docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest .
+          docker tag ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+
+      - name: Update Helm values with new image tag
+        run: |
+          sed -i 's|tag:.*|tag: "${{ github.sha }}"|' src/ui/chart/values.yaml
+
+      - name: Commit and push updated Helm values
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add src/ui/chart/values.yaml
+          git diff --staged --quiet || git commit -m "chore(ui): update image tag to ${{ github.sha }}"
+          git push
 
   # =============================================================================
   # SUMMARY
   # =============================================================================
   summary:
-    needs: [build-cart, build-catalog, build-checkout, build-orders, build-ui]
+    needs:
+      [
+        detect-changes,
+        build-cart,
+        build-catalog,
+        build-checkout,
+        build-orders,
+        build-ui,
+      ]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Summary
+      - name: Build Summary
         run: |
-          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "| Service | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Cart | ${{ needs.build-cart.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Catalog | ${{ needs.build-catalog.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Checkout | ${{ needs.build-checkout.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Orders | ${{ needs.build-orders.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| UI | ${{ needs.build-ui.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Services Changed:" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Changed | Build Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|---------|--------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛒 Cart | ${{ needs.detect-changes.outputs.cart }} | ${{ needs.build-cart.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📚 Catalog | ${{ needs.detect-changes.outputs.catalog }} | ${{ needs.build-catalog.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛍️ Checkout | ${{ needs.detect-changes.outputs.checkout }} | ${{ needs.build-checkout.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📦 Orders | ${{ needs.detect-changes.outputs.orders }} | ${{ needs.build-orders.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🖥️ UI | ${{ needs.detect-changes.outputs.ui }} | ${{ needs.build-ui.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
