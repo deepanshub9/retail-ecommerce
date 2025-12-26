@@ -104,6 +104,12 @@ module "eks_addons" {
   aws_load_balancer_controller = {
     most_recent = true
     namespace   = "kube-system"
+    set = [
+      {
+        name  = "vpcId"
+        value = module.vpc.vpc_id
+      }
+    ]
   }
 
   depends_on = [module.retail_app_eks]
