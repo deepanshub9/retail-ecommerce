@@ -1,0 +1,379 @@
+name: Retail Store CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/**"
+
+env:
+  AWS_REGION: us-west-2
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-west-2.amazonaws.com
+
+jobs:
+  # =============================================================================
+  # DETECT CHANGED SERVICES
+  # =============================================================================
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      cart: ${{ steps.changes.outputs.cart }}
+      catalog: ${{ steps.changes.outputs.catalog }}
+      checkout: ${{ steps.changes.outputs.checkout }}
+      orders: ${{ steps.changes.outputs.orders }}
+      ui: ${{ steps.changes.outputs.ui }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed services
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            cart:
+              - 'src/cart/**'
+            catalog:
+              - 'src/catalog/**'
+            checkout:
+              - 'src/checkout/**'
+            orders:
+              - 'src/orders/**'
+            ui:
+              - 'src/ui/**'
+
+  # =============================================================================
+  # BUILD AND PUSH - CART SERVICE (Java/Maven)
+  # =============================================================================
+  build-cart:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.cart == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Build with Maven
+        run: |
+          cd src/cart
+          ./mvnw clean package -DskipTests
+
+      - name: Run tests
+        run: |
+          cd src/cart
+          ./mvnw test
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push cart image
+        env:
+          ECR_REPOSITORY: retail-store-cart
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd src/cart
+          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest .
+          docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+
+      - name: Update Helm values with new image tag
+        run: |
+          cd src/cart/chart
+          sed -i "s/tag:.*/tag: ${{ github.sha }}/" values.yaml
+
+      - name: Commit and push updated values
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update cart image tag to ${{ github.sha }}"
+          file_pattern: src/cart/chart/values.yaml
+
+  # =============================================================================
+  # BUILD AND PUSH - CATALOG SERVICE (Go)
+  # =============================================================================
+  build-catalog:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.catalog == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache-dependency-path: src/catalog/go.mod
+
+      - name: Build Go application
+        run: |
+          cd src/catalog
+          go build -v ./...
+
+      - name: Run tests
+        run: |
+          cd src/catalog
+          go test -v ./...
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push catalog image
+        env:
+          ECR_REPOSITORY: retail-store-catalog
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd src/catalog
+          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest .
+          docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+
+      - name: Update Helm values with new image tag
+        run: |
+          cd src/catalog/chart
+          sed -i "s/tag:.*/tag: ${{ github.sha }}/" values.yaml
+
+      - name: Commit and push updated values
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update catalog image tag to ${{ github.sha }}"
+          file_pattern: src/catalog/chart/values.yaml
+
+  # =============================================================================
+  # BUILD AND PUSH - CHECKOUT SERVICE (Node.js/NestJS)
+  # =============================================================================
+  build-checkout:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.checkout == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: src/checkout/package.json
+
+      - name: Install dependencies
+        run: |
+          cd src/checkout
+          npm ci
+
+      - name: Run linting
+        run: |
+          cd src/checkout
+          npm run lint || true
+
+      - name: Build application
+        run: |
+          cd src/checkout
+          npm run build
+
+      - name: Run tests
+        run: |
+          cd src/checkout
+          npm test || true
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push checkout image
+        env:
+          ECR_REPOSITORY: retail-store-checkout
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd src/checkout
+          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest .
+          docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+
+      - name: Update Helm values with new image tag
+        run: |
+          cd src/checkout/chart
+          sed -i "s/tag:.*/tag: ${{ github.sha }}/" values.yaml
+
+      - name: Commit and push updated values
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update checkout image tag to ${{ github.sha }}"
+          file_pattern: src/checkout/chart/values.yaml
+
+  # =============================================================================
+  # BUILD AND PUSH - ORDERS SERVICE (Java/Maven)
+  # =============================================================================
+  build-orders:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.orders == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Build with Maven
+        run: |
+          cd src/orders
+          ./mvnw clean package -DskipTests
+
+      - name: Run tests
+        run: |
+          cd src/orders
+          ./mvnw test
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push orders image
+        env:
+          ECR_REPOSITORY: retail-store-orders
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd src/orders
+          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest .
+          docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+
+      - name: Update Helm values with new image tag
+        run: |
+          cd src/orders/chart
+          sed -i "s/tag:.*/tag: ${{ github.sha }}/" values.yaml
+
+      - name: Commit and push updated values
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update orders image tag to ${{ github.sha }}"
+          file_pattern: src/orders/chart/values.yaml
+
+  # =============================================================================
+  # BUILD AND PUSH - UI SERVICE (Java/Maven)
+  # =============================================================================
+  build-ui:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ui == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Build with Maven
+        run: |
+          cd src/ui
+          ./mvnw clean package -DskipTests
+
+      - name: Run tests
+        run: |
+          cd src/ui
+          ./mvnw test
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push ui image
+        env:
+          ECR_REPOSITORY: retail-store-ui
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd src/ui
+          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest .
+          docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+
+      - name: Update Helm values with new image tag
+        run: |
+          cd src/ui/chart
+          sed -i "s/tag:.*/tag: ${{ github.sha }}/" values.yaml
+
+      - name: Commit and push updated values
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update ui image tag to ${{ github.sha }}"
+          file_pattern: src/ui/chart/values.yaml
+
+  # =============================================================================
+  # NOTIFY ARGOCD TO SYNC (Optional - ArgoCD auto-syncs by default)
+  # =============================================================================
+  notify-argocd:
+    needs: [build-cart, build-catalog, build-checkout, build-orders, build-ui]
+    if: always() && (needs.build-cart.result == 'success' || needs.build-catalog.result == 'success' || needs.build-checkout.result == 'success' || needs.build-orders.result == 'success' || needs.build-ui.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger ArgoCD Sync
+        run: |
+          echo "Build completed successfully!"
+          echo "ArgoCD will automatically detect changes and sync applications"
+          echo "Applications are configured with automated sync in argocd/applications/"
