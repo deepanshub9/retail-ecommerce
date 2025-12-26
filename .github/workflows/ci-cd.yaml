@@ -12,9 +12,15 @@ on:
     paths:
       - "src/**"
 
+# 🆕 FIX 1: Prevent race conditions between concurrent workflow runs
+concurrency:
+  group: helm-update-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   AWS_REGION: us-west-2
-  ECR_REGISTRY: 859092166102.dkr.ecr.us-west-2.amazonaws.com
+  ECR_REGISTRY: 859092166102.dkr.ecr.us-west-2.amazonaws. com
+  IMAGES_TO_KEEP: 3 # 🆕 Number of recent images to keep
 
 jobs:
   # =============================================================================
@@ -24,10 +30,10 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       cart: ${{ steps.changes.outputs.cart }}
-      catalog: ${{ steps.changes.outputs.catalog }}
+      catalog: ${{ steps.changes. outputs.catalog }}
       checkout: ${{ steps.changes.outputs.checkout }}
-      orders: ${{ steps.changes.outputs.orders }}
-      ui: ${{ steps.changes.outputs.ui }}
+      orders: ${{ steps.changes.outputs. orders }}
+      ui: ${{ steps. changes.outputs.ui }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -57,9 +63,9 @@ jobs:
           echo "|---------|---------|" >> $GITHUB_STEP_SUMMARY
           echo "| 🛒 Cart | ${{ steps.changes.outputs.cart }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📚 Catalog | ${{ steps.changes.outputs.catalog }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🛍️ Checkout | ${{ steps.changes.outputs.checkout }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 📦 Orders | ${{ steps.changes.outputs.orders }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🖥️ UI | ${{ steps.changes.outputs.ui }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛍️ Checkout | ${{ steps.changes. outputs.checkout }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📦 Orders | ${{ steps.changes.outputs. orders }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🖥️ UI | ${{ steps.changes.outputs. ui }} |" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
   # BUILD AND PUSH - CART SERVICE (Java/Maven)
@@ -72,7 +78,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets. GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Set up Java 21
@@ -94,7 +100,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets. AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -107,8 +113,8 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           cd src/cart
-          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker tag ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY: $IMAGE_TAG . 
+          docker tag ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG ${{ env. ECR_REGISTRY }}/$ECR_REPOSITORY:latest
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
 
@@ -117,20 +123,20 @@ jobs:
   # =============================================================================
   build-catalog:
     needs: detect-changes
-    if: needs.detect-changes.outputs.catalog == 'true'
+    if: needs. detect-changes.outputs.catalog == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets. GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.21"
-          cache-dependency-path: src/catalog/go.sum
+          cache-dependency-path: src/catalog/go. sum
 
       - name: Build Go application
         run: go build -o main .
@@ -154,7 +160,7 @@ jobs:
         run: |
           cd src/catalog
           docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker tag ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+          docker tag ${{ env. ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
 
@@ -163,13 +169,13 @@ jobs:
   # =============================================================================
   build-checkout:
     needs: detect-changes
-    if: needs.detect-changes.outputs.checkout == 'true'
+    if: needs.detect-changes.outputs. checkout == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets. GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -189,7 +195,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets. AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -202,10 +208,10 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           cd src/checkout
-          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker tag ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
-          docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG . 
+          docker tag ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY: $IMAGE_TAG ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+          docker push ${{ env. ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push ${{ env. ECR_REGISTRY }}/$ECR_REPOSITORY:latest
 
   # =============================================================================
   # BUILD AND PUSH - ORDERS SERVICE (Java/Maven)
@@ -240,7 +246,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets. AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -253,10 +259,10 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           cd src/orders
-          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker tag ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
-          docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG . 
+          docker tag ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY: $IMAGE_TAG ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+          docker push ${{ env. ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push ${{ env. ECR_REGISTRY }}/$ECR_REPOSITORY:latest
 
   # =============================================================================
   # BUILD AND PUSH - UI SERVICE (Java/Maven)
@@ -304,10 +310,158 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           cd src/ui
-          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY: $IMAGE_TAG . 
           docker tag ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:$IMAGE_TAG
           docker push ${{ env.ECR_REGISTRY }}/$ECR_REPOSITORY:latest
+
+  # =============================================================================
+  # 🆕 CLEANUP OLD ECR IMAGES (Keep only last 3 builds)
+  # =============================================================================
+  cleanup-ecr-images:
+    needs:
+      [
+        detect-changes,
+        build-cart,
+        build-catalog,
+        build-checkout,
+        build-orders,
+        build-ui,
+      ]
+    if: always() && (needs.build-cart.result == 'success' || needs.build-catalog.result == 'success' || needs.build-checkout.result == 'success' || needs. build-orders.result == 'success' || needs.build-ui.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Cleanup old Cart images
+        if: needs.detect-changes.outputs. cart == 'true' && needs.build-cart.result == 'success'
+        run: |
+          echo "🧹 Cleaning up old images for retail-store-cart..."
+
+          # Get all image tags sorted by push date (newest first), skip 'latest' tag
+          IMAGES_TO_DELETE=$(aws ecr describe-images \
+            --repository-name retail-store-cart \
+            --query 'sort_by(imageDetails,&imagePushedAt)[*].imageDigest' \
+            --output text | tr '\t' '\n' | head -n -${{ env.IMAGES_TO_KEEP }})
+
+          if [ -n "$IMAGES_TO_DELETE" ]; then
+            for digest in $IMAGES_TO_DELETE; do
+              echo "Deleting image: $digest"
+              aws ecr batch-delete-image \
+                --repository-name retail-store-cart \
+                --image-ids imageDigest=$digest || true
+            done
+            echo "✅ Old cart images deleted"
+          else
+            echo "ℹ️ No old images to delete"
+          fi
+
+      - name: Cleanup old Catalog images
+        if: needs.detect-changes.outputs.catalog == 'true' && needs.build-catalog.result == 'success'
+        run: |
+          echo "🧹 Cleaning up old images for retail-store-catalog..."
+
+          IMAGES_TO_DELETE=$(aws ecr describe-images \
+            --repository-name retail-store-catalog \
+            --query 'sort_by(imageDetails,&imagePushedAt)[*].imageDigest' \
+            --output text | tr '\t' '\n' | head -n -${{ env. IMAGES_TO_KEEP }})
+
+          if [ -n "$IMAGES_TO_DELETE" ]; then
+            for digest in $IMAGES_TO_DELETE; do
+              echo "Deleting image:  $digest"
+              aws ecr batch-delete-image \
+                --repository-name retail-store-catalog \
+                --image-ids imageDigest=$digest || true
+            done
+            echo "✅ Old catalog images deleted"
+          else
+            echo "ℹ️ No old images to delete"
+          fi
+
+      - name: Cleanup old Checkout images
+        if: needs.detect-changes.outputs.checkout == 'true' && needs.build-checkout.result == 'success'
+        run: |
+          echo "🧹 Cleaning up old images for retail-store-checkout..."
+
+          IMAGES_TO_DELETE=$(aws ecr describe-images \
+            --repository-name retail-store-checkout \
+            --query 'sort_by(imageDetails,&imagePushedAt)[*].imageDigest' \
+            --output text | tr '\t' '\n' | head -n -${{ env.IMAGES_TO_KEEP }})
+
+          if [ -n "$IMAGES_TO_DELETE" ]; then
+            for digest in $IMAGES_TO_DELETE; do
+              echo "Deleting image: $digest"
+              aws ecr batch-delete-image \
+                --repository-name retail-store-checkout \
+                --image-ids imageDigest=$digest || true
+            done
+            echo "✅ Old checkout images deleted"
+          else
+            echo "ℹ️ No old images to delete"
+          fi
+
+      - name: Cleanup old Orders images
+        if: needs. detect-changes.outputs.orders == 'true' && needs. build-orders.result == 'success'
+        run: |
+          echo "🧹 Cleaning up old images for retail-store-orders..."
+
+          IMAGES_TO_DELETE=$(aws ecr describe-images \
+            --repository-name retail-store-orders \
+            --query 'sort_by(imageDetails,&imagePushedAt)[*].imageDigest' \
+            --output text | tr '\t' '\n' | head -n -${{ env. IMAGES_TO_KEEP }})
+
+          if [ -n "$IMAGES_TO_DELETE" ]; then
+            for digest in $IMAGES_TO_DELETE; do
+              echo "Deleting image:  $digest"
+              aws ecr batch-delete-image \
+                --repository-name retail-store-orders \
+                --image-ids imageDigest=$digest || true
+            done
+            echo "✅ Old orders images deleted"
+          else
+            echo "ℹ️ No old images to delete"
+          fi
+
+      - name: Cleanup old UI images
+        if: needs.detect-changes.outputs.ui == 'true' && needs.build-ui.result == 'success'
+        run: |
+          echo "🧹 Cleaning up old images for retail-store-ui..."
+
+          IMAGES_TO_DELETE=$(aws ecr describe-images \
+            --repository-name retail-store-ui \
+            --query 'sort_by(imageDetails,&imagePushedAt)[*].imageDigest' \
+            --output text | tr '\t' '\n' | head -n -${{ env.IMAGES_TO_KEEP }})
+
+          if [ -n "$IMAGES_TO_DELETE" ]; then
+            for digest in $IMAGES_TO_DELETE; do
+              echo "Deleting image: $digest"
+              aws ecr batch-delete-image \
+                --repository-name retail-store-ui \
+                --image-ids imageDigest=$digest || true
+            done
+            echo "✅ Old UI images deleted"
+          else
+            echo "ℹ️ No old images to delete"
+          fi
+
+      - name: Cleanup Summary
+        run: |
+          echo "## 🧹 ECR Cleanup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Kept the **last ${{ env.IMAGES_TO_KEEP }} images** for each service." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Cleanup Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|----------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛒 Cart | ${{ needs.build-cart.result == 'success' && '✅ Cleaned' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📚 Catalog | ${{ needs.build-catalog.result == 'success' && '✅ Cleaned' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛍️ Checkout | ${{ needs.build-checkout.result == 'success' && '✅ Cleaned' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📦 Orders | ${{ needs. build-orders.result == 'success' && '✅ Cleaned' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🖥️ UI | ${{ needs.build-ui.result == 'success' && '✅ Cleaned' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
   # UPDATE HELM VALUES (Runs after all builds complete)
@@ -321,52 +475,84 @@ jobs:
         build-checkout,
         build-orders,
         build-ui,
+        cleanup-ecr-images,
       ]
-    if: always() && (needs.build-cart.result == 'success' || needs.build-catalog.result == 'success' || needs.build-checkout.result == 'success' || needs.build-orders.result == 'success' || needs.build-ui.result == 'success')
+    if: always() && (needs.build-cart.result == 'success' || needs. build-catalog.result == 'success' || needs.build-checkout.result == 'success' || needs.build-orders. result == 'success' || needs.build-ui.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets. GITHUB_TOKEN }}
           fetch-depth: 0
 
-      - name: Pull latest changes
+      - name: Configure Git
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
-          git pull origin main --rebase
+
+      # 🆕 FIX 2: Pull latest changes before making updates
+      - name: Pull latest changes
+        run: git pull origin main --rebase
 
       - name: Update Cart Helm values
-        if: needs.detect-changes.outputs.cart == 'true' && needs.build-cart.result == 'success'
+        if: needs.detect-changes.outputs. cart == 'true' && needs.build-cart.result == 'success'
         run: |
-          sed -i 's/tag:.*/tag: "${{ github.sha }}"/' src/cart/chart/values.yaml
+          sed -i 's/tag:. */tag: "${{ github.sha }}"/' src/cart/chart/values.yaml
 
       - name: Update Catalog Helm values
-        if: needs.detect-changes.outputs.catalog == 'true' && needs.build-catalog.result == 'success'
+        if: needs.detect-changes. outputs.catalog == 'true' && needs.build-catalog. result == 'success'
         run: |
-          sed -i 's/tag:.*/tag: "${{ github.sha }}"/' src/catalog/chart/values.yaml
+          sed -i 's/tag:.*/tag: "${{ github.sha }}"/' src/catalog/chart/values. yaml
 
       - name: Update Checkout Helm values
         if: needs.detect-changes.outputs.checkout == 'true' && needs.build-checkout.result == 'success'
         run: |
-          sed -i 's/tag:.*/tag: "${{ github.sha }}"/' src/checkout/chart/values.yaml
+          sed -i 's/tag:.*/tag: "${{ github. sha }}"/' src/checkout/chart/values.yaml
 
       - name: Update Orders Helm values
-        if: needs.detect-changes.outputs.orders == 'true' && needs.build-orders.result == 'success'
+        if: needs.detect-changes.outputs. orders == 'true' && needs.build-orders.result == 'success'
         run: |
           sed -i 's/tag:.*/tag: "${{ github.sha }}"/' src/orders/chart/values.yaml
 
       - name: Update UI Helm values
         if: needs.detect-changes.outputs.ui == 'true' && needs.build-ui.result == 'success'
         run: |
-          sed -i 's/tag:.*/tag: "${{ github.sha }}"/' src/ui/chart/values.yaml
+          sed -i 's/tag:.*/tag: "${{ github. sha }}"/' src/ui/chart/values.yaml
 
+      # 🆕 FIX 3:  Improved push with retry logic
       - name: Commit and push all Helm value updates
         run: |
           git add src/*/chart/values.yaml
-          git diff --staged --quiet || git commit -m "chore: update image tags to ${{ github.sha }} [skip ci]"
-          git push origin main || (git pull origin main --rebase && git push origin main)
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "chore: update image tags to ${{ github.sha }} [skip ci]"
+
+          # Retry logic for push
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if git push origin main; then
+              echo "✅ Push successful!"
+              exit 0
+            fi
+            
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            echo "⚠️ Push failed, retrying...  ($RETRY_COUNT/$MAX_RETRIES)"
+            
+            # Pull latest and rebase
+            git pull origin main --rebase
+            sleep 2
+          done
+
+          echo "❌ Failed after $MAX_RETRIES retries"
+          exit 1
 
   # =============================================================================
   # SUMMARY
@@ -380,6 +566,7 @@ jobs:
         build-checkout,
         build-orders,
         build-ui,
+        cleanup-ecr-images,
         update-helm-values,
       ]
     if: always()
@@ -392,15 +579,17 @@ jobs:
           echo "### Build Results:" >> $GITHUB_STEP_SUMMARY
           echo "| Service | Changed | Build Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|---------|--------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 🛒 Cart | ${{ needs.detect-changes.outputs.cart }} | ${{ needs.build-cart.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 📚 Catalog | ${{ needs.detect-changes.outputs.catalog }} | ${{ needs.build-catalog.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🛍️ Checkout | ${{ needs.detect-changes.outputs.checkout }} | ${{ needs.build-checkout.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 📦 Orders | ${{ needs.detect-changes.outputs.orders }} | ${{ needs.build-orders.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🖥️ UI | ${{ needs.detect-changes.outputs.ui }} | ${{ needs.build-ui.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛒 Cart | ${{ needs.detect-changes.outputs. cart }} | ${{ needs.build-cart.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📚 Catalog | ${{ needs.detect-changes.outputs. catalog }} | ${{ needs.build-catalog.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛍️ Checkout | ${{ needs.detect-changes.outputs. checkout }} | ${{ needs.build-checkout.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📦 Orders | ${{ needs.detect-changes. outputs.orders }} | ${{ needs.build-orders.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🖥️ UI | ${{ needs. detect-changes.outputs.ui }} | ${{ needs.build-ui.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🧹 ECR Cleanup:  ${{ needs.cleanup-ecr-images. result }}" >> $GITHUB_STEP_SUMMARY
           echo "### Helm Values Update: ${{ needs.update-helm-values.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📝 Notes:" >> $GITHUB_STEP_SUMMARY
-          echo "- Images pushed to: 859092166102.dkr.ecr.us-west-2.amazonaws.com" >> $GITHUB_STEP_SUMMARY
-          echo "- Image tag: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Images pushed to:  859092166102.dkr. ecr.us-west-2.amazonaws. com" >> $GITHUB_STEP_SUMMARY
+          echo "- Image tag: ${{ github. sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Only last ${{ env.IMAGES_TO_KEEP }} images kept** per service" >> $GITHUB_STEP_SUMMARY
           echo "- ArgoCD will auto-sync from updated Helm values" >> $GITHUB_STEP_SUMMARY
