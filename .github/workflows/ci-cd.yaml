@@ -156,13 +156,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: src/checkout/yarn.lock
 
       - name: Install dependencies
-        run: npm install
+        run: yarn install --frozen-lockfile
         working-directory: src/checkout
 
       - name: Build application
-        run: npm run build --if-present
+        run: yarn build
         working-directory: src/checkout
 
       - name: Configure AWS credentials
