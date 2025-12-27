@@ -8,7 +8,7 @@ image:
   repository: 859092166102.dkr.ecr.us-west-2.amazonaws.com/retail-store-catalog
   pullPolicy: Always
   # Updated automatically by GitHub Actions (GitOps)
-  tag: "e21c7df5dce344b45d322f74107d10233993b5d5"
+  tag: "571aaf53caa98dbf86950e808f4bf63448bab953"
 
 imagePullSecrets: []
 
@@ -82,7 +82,7 @@ mysql:
   image:
     repository: public.ecr.aws/docker/library/mysql
     pullPolicy: IfNotPresent
-    tag: "8.0"
+    tag: "571aaf53caa98dbf86950e808f4bf63448bab953"
   service:
     type: ClusterIP
     port: 3306

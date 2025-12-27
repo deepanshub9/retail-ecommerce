@@ -8,7 +8,7 @@ image:
   repository: 859092166102.dkr.ecr.us-west-2.amazonaws.com/retail-store-orders
   pullPolicy: Always
   # Updated automatically by GitHub Actions (GitOps)
-  tag: "e21c7df5dce344b45d322f74107d10233993b5d5"
+  tag: "571aaf53caa98dbf86950e808f4bf63448bab953"
 
 imagePullSecrets: []
 
@@ -91,7 +91,7 @@ postgresql:
   image:
     repository: public.ecr.aws/docker/library/postgres
     pullPolicy: IfNotPresent
-    tag: "13"
+    tag: "571aaf53caa98dbf86950e808f4bf63448bab953"
   service:
     type: ClusterIP
     port: 5432
@@ -112,7 +112,7 @@ rabbitmq:
   image:
     repository: public.ecr.aws/docker/library/rabbitmq
     pullPolicy: IfNotPresent
-    tag: "3.8-management"
+    tag: "571aaf53caa98dbf86950e808f4bf63448bab953"
   service:
     type: ClusterIP
     amqp:
