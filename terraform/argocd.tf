@@ -152,9 +152,30 @@ resource "null_resource" "cleanup_argocd_apps" {
       # Delete ArgoCD projects
       kubectl delete appprojects.argoproj.io --all -n ${self.triggers.namespace} --ignore-not-found --timeout=60s 2>/dev/null || true
       
-      # Wait for applications to be cleaned up
+      # Wait for applications to be fully cleaned up with polling
       echo "Waiting for ArgoCD applications to be cleaned up..."
-      sleep 30
+      MAX_RETRIES=20
+      SLEEP_SECONDS=30
+      i=1
+      while [ "$i" -le "$MAX_RETRIES" ]; do
+        REMAINING_APPS=$(kubectl get applications.argoproj.io -n ${self.triggers.namespace} --no-headers 2>/dev/null | wc -l | tr -d ' ')
+        if [ -z "$REMAINING_APPS" ]; then
+          REMAINING_APPS=0
+        fi
+        
+        if [ "$REMAINING_APPS" -eq 0 ] 2>/dev/null; then
+          echo "All ArgoCD applications have been cleaned up."
+          break
+        fi
+        
+        echo "ArgoCD applications still present (${REMAINING_APPS}). Waiting (${i}/${MAX_RETRIES})..."
+        i=$((i + 1))
+        sleep "$SLEEP_SECONDS"
+      done
+      
+      if [ "$REMAINING_APPS" -ne 0 ] 2>/dev/null; then
+        echo "Warning: Some ArgoCD applications may still exist after waiting ${MAX_RETRIES} * ${SLEEP_SECONDS}s."
+      fi
       
       echo "ArgoCD cleanup complete!"
     EOT
