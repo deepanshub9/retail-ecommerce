@@ -3,24 +3,28 @@
 # Declare variables to be passed into your templates.
 
 replicaCount: 1
+
 image:
   repository: 859092166102.dkr.ecr.us-west-2.amazonaws.com/retail-store-ui
   pullPolicy: Always
-  tag: "latest"
+  # Updated automatically by GitHub Actions (GitOps)
+  tag: "571aaf53caa98dbf86950e808f4bf63448bab953"
+
 imagePullSecrets: []
+
 nameOverride: ""
 fullnameOverride: ""
+
 serviceAccount:
-  # Specifies whether a service account should be created
   create: true
-  # Annotations to add to the service account
   annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
   name: ""
+
 podAnnotations: {}
+
 podSecurityContext:
   fsGroup: 1000
+
 securityContext:
   capabilities:
     drop:
@@ -30,38 +34,41 @@ securityContext:
   readOnlyRootFilesystem: true
   runAsNonRoot: true
   runAsUser: 1000
+
 service:
   type: ClusterIP
   port: 80
-  # annotations: {}
-  # loadBalancerClass: ""
-  # nodePort: 30000
+
 resources:
   limits:
     memory: 512Mi
   requests:
     cpu: 128m
     memory: 512Mi
+
 autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 10
   targetCPUUtilizationPercentage: 50
+
 nodeSelector: {}
 tolerations: []
 affinity: {}
 topologySpreadConstraints: []
+
 metrics:
   enabled: true
   podAnnotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"
     prometheus.io/path: "/actuator/prometheus"
+
 configMap:
   create: true
-  name: # if blank this will be generated
+  name:
+
 app:
-  # theme: default
   endpoints:
     catalog: http://retail-store-catalog:80
     carts: http://retail-store-cart-carts:80
@@ -71,16 +78,12 @@ app:
     enabled: false
     provider: ""
     model: ""
-    # temperature: 0.7
-    # maxTokens: 300
-    # prompt: |
-    #   This will override the default system prompt
     bedrock:
       region: ""
     openai:
       baseUrl: ""
-      # apiKey: ""
-## Ingress for NGINX Ingress Controller
+
+# Ingress configuration (NGINX)
 ingress:
   enabled: false
   className: "nginx"
@@ -94,8 +97,8 @@ ingress:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
   tls: []
   hosts: []
+
 ingresses:
-  # Direct ELB access - no host restriction
   - name: direct
     className: "nginx"
     hosts: []
@@ -107,7 +110,7 @@ ingresses:
       nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
       nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
     tls: []
-  # Domain-based access with SSL
+
   - name: domain
     className: "nginx"
     hosts:
@@ -125,19 +128,21 @@ ingresses:
         hosts:
           - retail-store.yourdomain.com
 
-# Cert Manager Configuration
 certManager:
   createClusterIssuer: true
   email: deepanshub9@gmail.com
   clusterIssuerName: "letsencrypt-prod"
   server: "https://acme-v02.api.letsencrypt.org/directory"
   privateKeySecretName: "letsencrypt-prod-key"
+
 istio:
   enabled: false
   hosts: []
+
 opentelemetry:
   enabled: false
   instrumentation: ""
+
 podDisruptionBudget:
   enabled: false
   minAvailable: 2
