@@ -4,9 +4,11 @@
 
 replicaCount: 1
 image:
-  repository: public.ecr.aws/aws-containers/retail-store-sample-ui
+  # Use private ECR registry - set AWS_ACCOUNT_ID in your environment
+  # Format: <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/retail-store-ui
+  repository: retail-store-ui
   pullPolicy: Always
-  tag: "1.2.2"
+  tag: "latest"
 imagePullSecrets:
   - name: regcred
 nameOverride: ""
