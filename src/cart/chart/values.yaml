@@ -4,9 +4,9 @@
 
 replicaCount: 1
 image:
-  # Use private ECR registry - set AWS_ACCOUNT_ID in your environment
+  # Use private ECR registry - replace <AWS_ACCOUNT_ID> and <REGION> or override via values/CI
   # Format: <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/retail-store-cart
-  repository: retail-store-cart
+  repository: "<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/retail-store-cart"
   pullPolicy: Always
   tag: "latest"
 imagePullSecrets:
