@@ -3,28 +3,28 @@
 # Declare variables to be passed into your templates.
 
 replicaCount: 1
+
 image:
-  # Use private ECR registry - set AWS_ACCOUNT_ID and REGION for your environment
-  # Format (placeholder, must be replaced or overridden):
-  #   <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/retail-store-catalog
-  repository: "<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/retail-store-catalog"
+  repository: 859092166102.dkr.ecr.us-west-2.amazonaws.com/retail-store-catalog
   pullPolicy: Always
-  tag: "latest"
-imagePullSecrets:
-  - name: regcred
+  # Updated automatically by GitHub Actions (GitOps)
+  tag: "e21c7df5dce344b45d322f74107d10233993b5d5"
+
+imagePullSecrets: []
+
 nameOverride: ""
 fullnameOverride: ""
+
 serviceAccount:
-  # Specifies whether a service account should be created
   create: true
-  # Annotations to add to the service account
   annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
   name: ""
+
 podAnnotations: {}
+
 podSecurityContext:
   fsGroup: 1000
+
 securityContext:
   capabilities:
     drop:
@@ -32,34 +32,40 @@ securityContext:
   readOnlyRootFilesystem: true
   runAsNonRoot: true
   runAsUser: 1000
+
 service:
   type: ClusterIP
   port: 80
+
 resources:
   limits:
     memory: 256Mi
   requests:
     cpu: 256m
     memory: 256Mi
+
 autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 10
   targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+
 nodeSelector: {}
 tolerations: []
 affinity: {}
 topologySpreadConstraints: []
+
 metrics:
   enabled: true
   podAnnotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"
     prometheus.io/path: "/metrics"
+
 configMap:
   create: true
   name:
+
 app:
   persistence:
     provider: in-memory
@@ -70,6 +76,7 @@ app:
       name: catalog-db
       username: catalog
       password: ""
+
 mysql:
   create: false
   image:
@@ -91,12 +98,15 @@ mysql:
       - ReadWriteOnce
     size: 10Gi
     storageClass: ""
+
 securityGroups:
   create: false
   securityGroupIds: []
+
 opentelemetry:
   enabled: false
   instrumentation: ""
+
 podDisruptionBudget:
   enabled: false
   minAvailable: 2

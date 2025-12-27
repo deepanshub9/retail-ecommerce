@@ -6,7 +6,7 @@
 | -------- | ----------- |
 | Go       | MySQL       |
 
-<!-- Test commit -->
+## Test commit by deepanshub9
 
 This service provides an API for retrieving product catalog information. Data is stored in a MySQL database.
 
