@@ -24,9 +24,9 @@ resource "helm_release" "argocd" {
   chart      = "argo-cd"
   version    = var.argocd_chart_version
 
-  # Force cleanup on destroy - ensures resources are deleted
-  force_update  = false
-  cleanup_on_fail = true
+  # Cleanup behavior: do not force updates; only clean up on failed installs/upgrades (no special destroy behavior)
+  force_update     = false
+  cleanup_on_fail  = true
   
   # Wait for resources to be ready
   wait          = true
