@@ -315,7 +315,13 @@ jobs:
   # =============================================================================
   update-helm-values:
     needs: [build-cart, build-catalog, build-checkout, build-orders, build-ui]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (needs.build-cart.result == 'success' || needs.build-catalog.result == 'success' || needs.build-checkout.result == 'success' || needs.build-orders.result == 'success' || needs.build-ui.result == 'success')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (
+      needs.build-cart.result == 'success' || needs.build-cart.result == 'skipped' ||
+      needs.build-catalog.result == 'success' || needs.build-catalog.result == 'skipped' ||
+      needs.build-checkout.result == 'success' || needs.build-checkout.result == 'skipped' ||
+      needs.build-orders.result == 'success' || needs.build-orders.result == 'skipped' ||
+      needs.build-ui.result == 'success' || needs.build-ui.result == 'skipped'
+    )
     runs-on: ubuntu-latest
     permissions:
       contents: write
