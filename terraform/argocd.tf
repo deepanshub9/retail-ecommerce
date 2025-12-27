@@ -139,7 +139,12 @@ resource "null_resource" "cleanup_argocd_apps" {
       echo "Cleaning up ArgoCD applications..."
       
       # Update kubeconfig
-      aws eks update-kubeconfig --name ${self.triggers.cluster_name} --region ${self.triggers.region} 2>/dev/null || true
+      if ! aws eks update-kubeconfig --name ${self.triggers.cluster_name} --region ${self.triggers.region} 2>/dev/null; then
+        echo "Warning: Failed to update kubeconfig for cluster '${self.triggers.cluster_name}' in region '${self.triggers.region}'."
+        echo "AWS credentials or EKS access may be missing. Skipping ArgoCD Kubernetes resource cleanup."
+        # Do not fail the Terraform destroy; cleanup is best-effort.
+        exit 0
+      fi
       
       # Delete all ArgoCD applications (this will delete the deployed resources)
       kubectl delete applications.argoproj.io --all -n ${self.triggers.namespace} --ignore-not-found --timeout=120s 2>/dev/null || true
