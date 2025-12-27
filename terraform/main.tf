@@ -44,6 +44,70 @@ module "vpc" {
 }
 
 # =============================================================================
+# CLEANUP RESOURCES BEFORE VPC DELETION
+# This null_resource ensures that AWS Load Balancers created by the 
+# AWS Load Balancer Controller are deleted before the VPC is destroyed.
+# Without this, VPC deletion will hang waiting for ENIs to be released.
+# =============================================================================
+
+resource "null_resource" "cleanup_load_balancers" {
+  # This runs during terraform destroy, before the VPC is deleted
+  triggers = {
+    vpc_id     = module.vpc.vpc_id
+    region     = var.aws_region
+    cluster    = local.cluster_name
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      echo "Cleaning up AWS Load Balancers in VPC ${self.triggers.vpc_id}..."
+      
+      # Delete all load balancers in the VPC
+      for lb in $(aws elbv2 describe-load-balancers --region ${self.triggers.region} --query "LoadBalancers[?VpcId=='${self.triggers.vpc_id}'].LoadBalancerArn" --output text 2>/dev/null); do
+        echo "Deleting load balancer: $lb"
+        aws elbv2 delete-load-balancer --load-balancer-arn "$lb" --region ${self.triggers.region} 2>/dev/null || true
+      done
+      
+      # Wait for load balancers to be fully deleted with polling
+      echo "Waiting for load balancers to be deleted..."
+      for i in {1..20}; do
+        LB_COUNT=$(aws elbv2 describe-load-balancers --region ${self.triggers.region} --query "length(LoadBalancers[?VpcId=='${self.triggers.vpc_id}'])" --output text 2>/dev/null || echo "0")
+        if [ "$LB_COUNT" = "0" ]; then
+          echo "All load balancers deleted."
+          break
+        fi
+        echo "Waiting for $LB_COUNT load balancer(s) to be deleted... (attempt $i/20)"
+        sleep 15
+      done
+      
+      # Delete all target groups in the VPC
+      for tg in $(aws elbv2 describe-target-groups --region ${self.triggers.region} --query "TargetGroups[?VpcId=='${self.triggers.vpc_id}'].TargetGroupArn" --output text 2>/dev/null); do
+        echo "Deleting target group: $tg"
+        aws elbv2 delete-target-group --target-group-arn "$tg" --region ${self.triggers.region} 2>/dev/null || true
+      done
+      
+      # Wait for ENIs to be released with polling
+      echo "Waiting for ENIs to be released..."
+      for i in {1..12}; do
+        ENI_COUNT=$(aws ec2 describe-network-interfaces --region ${self.triggers.region} --filters "Name=vpc-id,Values=${self.triggers.vpc_id}" "Name=status,Values=in-use" --query "length(NetworkInterfaces)" --output text 2>/dev/null || echo "0")
+        if [ "$ENI_COUNT" = "0" ]; then
+          echo "All ENIs released."
+          break
+        fi
+        echo "Waiting for $ENI_COUNT ENI(s) to be released... (attempt $i/12)"
+        sleep 10
+      done
+      
+      echo "Cleanup complete!"
+    EOT
+    on_failure = continue
+  }
+
+  depends_on = [module.vpc]
+}
+
+# =============================================================================
 # EKS CLUSTER CONFIGURATION
 # =============================================================================
 

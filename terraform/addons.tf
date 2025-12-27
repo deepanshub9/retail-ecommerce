@@ -114,3 +114,52 @@ module "eks_addons" {
 
   depends_on = [module.retail_app_eks]
 }
+
+# =============================================================================
+# CLEANUP HOOK FOR EKS ADDONS
+# This ensures that Kubernetes services (LoadBalancers) are cleaned up
+# before the EKS cluster and VPC are destroyed.
+# =============================================================================
+
+resource "null_resource" "cleanup_k8s_services" {
+  triggers = {
+    cluster_name = module.retail_app_eks.cluster_name
+    region       = var.aws_region
+    vpc_id       = module.vpc.vpc_id
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      echo "Cleaning up Kubernetes LoadBalancer services..."
+      
+      # Update kubeconfig
+      aws eks update-kubeconfig --name ${self.triggers.cluster_name} --region ${self.triggers.region} 2>/dev/null || true
+      
+      # Delete ingress-nginx namespace first (releases NLB)
+      kubectl delete namespace ingress-nginx --ignore-not-found --timeout=120s 2>/dev/null || true
+      
+      # Delete all LoadBalancer type services across all namespaces
+      for ns in $(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do
+        kubectl delete svc -n "$ns" --field-selector spec.type=LoadBalancer --ignore-not-found --timeout=60s 2>/dev/null || true
+      done
+      
+      # Wait for load balancers to be fully deleted
+      echo "Waiting for AWS Load Balancers to be deleted..."
+      for i in {1..12}; do
+        LB_COUNT=$(aws elbv2 describe-load-balancers --region ${self.triggers.region} --query "length(LoadBalancers[?VpcId=='${self.triggers.vpc_id}'])" --output text 2>/dev/null || echo "0")
+        if [ "$LB_COUNT" = "0" ]; then
+          echo "All load balancers deleted."
+          break
+        fi
+        echo "Waiting for $LB_COUNT load balancer(s) to be deleted... (attempt $i/12)"
+        sleep 15
+      done
+      
+      echo "Kubernetes cleanup complete!"
+    EOT
+    on_failure = continue
+  }
+
+  depends_on = [module.eks_addons]
+}
