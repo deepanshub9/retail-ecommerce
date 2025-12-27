@@ -3,24 +3,28 @@
 # Declare variables to be passed into your templates.
 
 replicaCount: 1
+
 image:
   repository: 859092166102.dkr.ecr.us-west-2.amazonaws.com/retail-store-checkout
   pullPolicy: Always
-  tag: "latest"
+  # Updated automatically by GitHub Actions (GitOps)
+  tag: "e21c7df5dce344b45d322f74107d10233993b5d5"
+
 imagePullSecrets: []
-nameOverride: ''
-fullnameOverride: ''
+
+nameOverride: ""
+fullnameOverride: ""
+
 serviceAccount:
-  # Specifies whether a service account should be created
   create: true
-  # Annotations to add to the service account
   annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ''
+  name: ""
+
 podAnnotations: {}
+
 podSecurityContext:
   fsGroup: 1000
+
 securityContext:
   capabilities:
     drop:
@@ -28,41 +32,48 @@ securityContext:
   readOnlyRootFilesystem: true
   runAsNonRoot: true
   runAsUser: 1000
+
 service:
   type: ClusterIP
   port: 80
+
 resources:
   limits:
     memory: 256Mi
   requests:
     cpu: 128m
     memory: 256Mi
+
 autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 10
   targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+
 nodeSelector: {}
 tolerations: []
 affinity: {}
 topologySpreadConstraints: []
+
 metrics:
   enabled: true
   podAnnotations:
-    prometheus.io/scrape: 'true'
-    prometheus.io/port: '8080'
-    prometheus.io/path: '/metrics'
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+
 configMap:
   create: true
   name:
+
 app:
   persistence:
-    provider: 'in-memory'
+    provider: in-memory
     redis:
-      endpoint: ''
+      endpoint: ""
   endpoints:
     orders: http://retail-store-orders:80
+
 redis:
   create: false
   image:
@@ -76,12 +87,15 @@ redis:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+
 securityGroups:
   create: false
   securityGroupIds: []
+
 opentelemetry:
   enabled: false
-  instrumentation: ''
+  instrumentation: ""
+
 podDisruptionBudget:
   enabled: false
   minAvailable: 2
