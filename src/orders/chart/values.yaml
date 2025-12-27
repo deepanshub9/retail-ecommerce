@@ -4,8 +4,10 @@
 
 replicaCount: 1
 image:
-  # Use private ECR registry - set AWS_ACCOUNT_ID in your environment
-  # Format: <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/retail-store-orders
+  # Use private ECR registry - set AWS_ACCOUNT_ID in your environment.
+  # Example format (to be provided by CI/CD or overridden by the user):
+  #   <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/retail-store-orders
+  # The default value below is a placeholder image name; override it with your full registry path.
   repository: retail-store-orders
   pullPolicy: Always
   tag: "latest"
