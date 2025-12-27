@@ -341,31 +341,31 @@ jobs:
       - name: Update Cart image tag
         if: needs.build-cart.result == 'success'
         run: |
-          sed -i "s|repository: retail-store-cart|repository: ${{ env.ECR_REGISTRY }}/retail-store-cart|" src/cart/chart/values.yaml
+          sed -i "s|repository: .*retail-store-cart|repository: ${{ env.ECR_REGISTRY }}/retail-store-cart|" src/cart/chart/values.yaml
           sed -i "s|tag: \".*\"|tag: \"${{ github.sha }}\"|" src/cart/chart/values.yaml
 
       - name: Update Catalog image tag
         if: needs.build-catalog.result == 'success'
         run: |
-          sed -i "s|repository: retail-store-catalog|repository: ${{ env.ECR_REGISTRY }}/retail-store-catalog|" src/catalog/chart/values.yaml
+          sed -i "s|repository: .*retail-store-catalog|repository: ${{ env.ECR_REGISTRY }}/retail-store-catalog|" src/catalog/chart/values.yaml
           sed -i "s|tag: \".*\"|tag: \"${{ github.sha }}\"|" src/catalog/chart/values.yaml
 
       - name: Update Checkout image tag
         if: needs.build-checkout.result == 'success'
         run: |
-          sed -i "s|repository: retail-store-checkout|repository: ${{ env.ECR_REGISTRY }}/retail-store-checkout|" src/checkout/chart/values.yaml
+          sed -i "s|repository: .*retail-store-checkout|repository: ${{ env.ECR_REGISTRY }}/retail-store-checkout|" src/checkout/chart/values.yaml
           sed -i "s|tag: \".*\"|tag: \"${{ github.sha }}\"|" src/checkout/chart/values.yaml
 
       - name: Update Orders image tag
         if: needs.build-orders.result == 'success'
         run: |
-          sed -i "s|repository: retail-store-orders|repository: ${{ env.ECR_REGISTRY }}/retail-store-orders|" src/orders/chart/values.yaml
+          sed -i "s|repository: .*retail-store-orders|repository: ${{ env.ECR_REGISTRY }}/retail-store-orders|" src/orders/chart/values.yaml
           sed -i "s|tag: \".*\"|tag: \"${{ github.sha }}\"|" src/orders/chart/values.yaml
 
       - name: Update UI image tag
         if: needs.build-ui.result == 'success'
         run: |
-          sed -i "s|repository: retail-store-ui|repository: ${{ env.ECR_REGISTRY }}/retail-store-ui|" src/ui/chart/values.yaml
+          sed -i "s|repository: .*retail-store-ui|repository: ${{ env.ECR_REGISTRY }}/retail-store-ui|" src/ui/chart/values.yaml
           sed -i "s|tag: \".*\"|tag: \"${{ github.sha }}\"|" src/ui/chart/values.yaml
 
       - name: Commit and push changes
