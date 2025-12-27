@@ -134,7 +134,14 @@ resource "null_resource" "cleanup_k8s_services" {
       echo "Cleaning up Kubernetes LoadBalancer services..."
       
       # Update kubeconfig
-      aws eks update-kubeconfig --name ${self.triggers.cluster_name} --region ${self.triggers.region} 2>/dev/null || true
+      aws eks update-kubeconfig --name ${self.triggers.cluster_name} --region ${self.triggers.region} 2>/dev/null
+      if [ $? -ne 0 ]; then
+        echo "WARNING: Failed to update kubeconfig for cluster '${self.triggers.cluster_name}' in region '${self.triggers.region}'."
+        echo "         This is often caused by missing or invalid AWS credentials during 'terraform destroy'."
+        echo "         Skipping Kubernetes cleanup of LoadBalancer services; AWS load balancers may remain."
+        # Exit successfully so Terraform can continue destroying other resources.
+        exit 0
+      fi
       
       # Delete ingress-nginx namespace first (releases NLB)
       kubectl delete namespace ingress-nginx --ignore-not-found --timeout=120s 2>/dev/null || true
