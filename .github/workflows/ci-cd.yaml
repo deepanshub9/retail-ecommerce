@@ -30,6 +30,7 @@ jobs:
       ui: ${{ steps.filter.outputs.ui }}
     steps:
       - uses: actions/checkout@v4
+
       - id: filter
         uses: dorny/paths-filter@v3
         with:
@@ -40,132 +41,192 @@ jobs:
             orders: src/orders/**
             ui: src/ui/**
 
-# ======================================================
-# CART (JAVA)
-# ======================================================
+  # ======================================================
+  # CART (JAVA)
+  # ======================================================
   build-cart:
     needs: detect-changes
     if: needs.detect-changes.outputs.cart == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           java-version: "21"
           distribution: temurin
+          cache: maven
+
       - run: chmod +x mvnw && ./mvnw clean package -DskipTests
         working-directory: src/cart
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
       - uses: aws-actions/amazon-ecr-login@v2
+
       - run: |
           aws ecr describe-repositories --repository-name retail-store-cart || \
           aws ecr create-repository --repository-name retail-store-cart
+
           docker build -t $ECR_REGISTRY/retail-store-cart:${{ github.sha }} .
           docker tag $ECR_REGISTRY/retail-store-cart:${{ github.sha }} $ECR_REGISTRY/retail-store-cart:latest
           docker push $ECR_REGISTRY/retail-store-cart:${{ github.sha }}
           docker push $ECR_REGISTRY/retail-store-cart:latest
         working-directory: src/cart
 
-# ======================================================
-# CATALOG (GO)
-# ======================================================
+  # ======================================================
+  # CATALOG (GO)
+  # ======================================================
   build-catalog:
     needs: detect-changes
     if: needs.detect-changes.outputs.catalog == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-go@v5
         with:
           go-version: "1.21"
+
       - run: go build -o main .
         working-directory: src/catalog
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
       - uses: aws-actions/amazon-ecr-login@v2
+
       - run: |
           aws ecr describe-repositories --repository-name retail-store-catalog || \
           aws ecr create-repository --repository-name retail-store-catalog
+
           docker build -t $ECR_REGISTRY/retail-store-catalog:${{ github.sha }} .
           docker tag $ECR_REGISTRY/retail-store-catalog:${{ github.sha }} $ECR_REGISTRY/retail-store-catalog:latest
           docker push $ECR_REGISTRY/retail-store-catalog:${{ github.sha }}
           docker push $ECR_REGISTRY/retail-store-catalog:latest
         working-directory: src/catalog
 
-# ======================================================
-# CHECKOUT (NODE)
-# ======================================================
+  # ======================================================
+  # CHECKOUT (NODE)
+  # ======================================================
   build-checkout:
     needs: detect-changes
     if: needs.detect-changes.outputs.checkout == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+
       - run: npm install && npm run build --if-present
         working-directory: src/checkout
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
       - uses: aws-actions/amazon-ecr-login@v2
+
       - run: |
           aws ecr describe-repositories --repository-name retail-store-checkout || \
           aws ecr create-repository --repository-name retail-store-checkout
+
           docker build -t $ECR_REGISTRY/retail-store-checkout:${{ github.sha }} .
           docker tag $ECR_REGISTRY/retail-store-checkout:${{ github.sha }} $ECR_REGISTRY/retail-store-checkout:latest
           docker push $ECR_REGISTRY/retail-store-checkout:${{ github.sha }}
           docker push $ECR_REGISTRY/retail-store-checkout:latest
         working-directory: src/checkout
 
-# ======================================================
-# ORDERS + UI (JAVA)
-# ======================================================
-  build-orders-ui:
+  # ======================================================
+  # ORDERS (JAVA)
+  # ======================================================
+  build-orders:
     needs: detect-changes
-    if: needs.detect-changes.outputs.orders == 'true' || needs.detect-changes.outputs.ui == 'true'
+    if: needs.detect-changes.outputs.orders == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           java-version: "21"
           distribution: temurin
+          cache: maven
+
       - run: chmod +x mvnw && ./mvnw clean package -DskipTests
         working-directory: src/orders
-      - run: chmod +x mvnw && ./mvnw clean package -DskipTests
-        working-directory: src/ui
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      - uses: aws-actions/amazon-ecr-login@v2
-      - run: |
-          for repo in retail-store-orders retail-store-ui; do
-            aws ecr describe-repositories --repository-name $repo || \
-            aws ecr create-repository --repository-name $repo
-            docker build -t $ECR_REGISTRY/$repo:${{ github.sha }} src/${repo##*-}
-            docker tag $ECR_REGISTRY/$repo:${{ github.sha }} $ECR_REGISTRY/$repo:latest
-            docker push $ECR_REGISTRY/$repo:${{ github.sha }}
-            docker push $ECR_REGISTRY/$repo:latest
-          done
 
-# ======================================================
-# CLEANUP ECR (KEEP LAST 3)
-# ======================================================
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - run: |
+          aws ecr describe-repositories --repository-name retail-store-orders || \
+          aws ecr create-repository --repository-name retail-store-orders
+
+          docker build -t $ECR_REGISTRY/retail-store-orders:${{ github.sha }} .
+          docker tag $ECR_REGISTRY/retail-store-orders:${{ github.sha }} $ECR_REGISTRY/retail-store-orders:latest
+          docker push $ECR_REGISTRY/retail-store-orders:${{ github.sha }}
+          docker push $ECR_REGISTRY/retail-store-orders:latest
+        working-directory: src/orders
+
+  # ======================================================
+  # UI (JAVA)  ✅ FIXED & SEPARATE
+  # ======================================================
+  build-ui:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ui == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+          cache: maven
+
+      - run: chmod +x mvnw && ./mvnw clean package -DskipTests
+        working-directory: src/ui
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - run: |
+          aws ecr describe-repositories --repository-name retail-store-ui || \
+          aws ecr create-repository --repository-name retail-store-ui
+
+          docker build -t $ECR_REGISTRY/retail-store-ui:${{ github.sha }} .
+          docker tag $ECR_REGISTRY/retail-store-ui:${{ github.sha }} $ECR_REGISTRY/retail-store-ui:latest
+          docker push $ECR_REGISTRY/retail-store-ui:${{ github.sha }}
+          docker push $ECR_REGISTRY/retail-store-ui:latest
+        working-directory: src/ui
+
+  # ======================================================
+  # CLEANUP ECR (KEEP LAST 3 IMAGES)
+  # ======================================================
   cleanup-ecr:
-    needs: [build-cart, build-catalog, build-checkout, build-orders-ui]
+    needs: [build-cart, build-catalog, build-checkout, build-orders, build-ui]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -174,8 +235,15 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
       - run: |
-          for repo in retail-store-cart retail-store-catalog retail-store-checkout retail-store-orders retail-store-ui; do
+          for repo in \
+            retail-store-cart \
+            retail-store-catalog \
+            retail-store-checkout \
+            retail-store-orders \
+            retail-store-ui
+          do
             aws ecr describe-images \
               --repository-name $repo \
               --query 'sort_by(imageDetails,&imagePushedAt)[0:-3].imageDigest' \
