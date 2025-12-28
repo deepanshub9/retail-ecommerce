@@ -6,9 +6,8 @@ replicaCount: 1
 
 image:
   repository: 859092166102.dkr.ecr.us-east-1.amazonaws.com/retail-store-ui
+  tag: "latest"
   pullPolicy: Always
-  # Updated automatically by GitHub Actions (GitOps)
-tag: "latest"
 
 imagePullSecrets: []
 
