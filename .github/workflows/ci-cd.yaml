@@ -42,10 +42,19 @@ jobs:
             ui: src/ui/**
 
   # ======================================================
+  # COMMON DOCKER SETUP (BUILDx + AMD64)
+  # ======================================================
+  setup-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+  # ======================================================
   # CART (JAVA)
   # ======================================================
   build-cart:
-    needs: detect-changes
+    needs: [detect-changes, setup-docker]
     if: needs.detect-changes.outputs.cart == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -72,22 +81,22 @@ jobs:
           aws ecr describe-repositories --repository-name retail-store-cart || \
           aws ecr create-repository --repository-name retail-store-cart
 
-          docker build -t $ECR_REGISTRY/retail-store-cart:${{ github.sha }} .
-          docker tag $ECR_REGISTRY/retail-store-cart:${{ github.sha }} $ECR_REGISTRY/retail-store-cart:latest
-          docker push $ECR_REGISTRY/retail-store-cart:${{ github.sha }}
-          docker push $ECR_REGISTRY/retail-store-cart:latest
+          docker buildx build \
+            --platform linux/amd64 \
+            -t $ECR_REGISTRY/retail-store-cart:${{ github.sha }} \
+            -t $ECR_REGISTRY/retail-store-cart:latest \
+            --push .
         working-directory: src/cart
 
   # ======================================================
   # CATALOG (GO)
   # ======================================================
   build-catalog:
-    needs: detect-changes
+    needs: [detect-changes, setup-docker]
     if: needs.detect-changes.outputs.catalog == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-go@v5
         with:
           go-version: "1.21"
@@ -96,33 +105,28 @@ jobs:
         working-directory: src/catalog
 
       - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
       - uses: aws-actions/amazon-ecr-login@v2
 
       - run: |
           aws ecr describe-repositories --repository-name retail-store-catalog || \
           aws ecr create-repository --repository-name retail-store-catalog
 
-          docker build -t $ECR_REGISTRY/retail-store-catalog:${{ github.sha }} .
-          docker tag $ECR_REGISTRY/retail-store-catalog:${{ github.sha }} $ECR_REGISTRY/retail-store-catalog:latest
-          docker push $ECR_REGISTRY/retail-store-catalog:${{ github.sha }}
-          docker push $ECR_REGISTRY/retail-store-catalog:latest
+          docker buildx build \
+            --platform linux/amd64 \
+            -t $ECR_REGISTRY/retail-store-catalog:${{ github.sha }} \
+            -t $ECR_REGISTRY/retail-store-catalog:latest \
+            --push .
         working-directory: src/catalog
 
   # ======================================================
   # CHECKOUT (NODE)
   # ======================================================
   build-checkout:
-    needs: detect-changes
+    needs: [detect-changes, setup-docker]
     if: needs.detect-changes.outputs.checkout == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -131,95 +135,79 @@ jobs:
         working-directory: src/checkout
 
       - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
       - uses: aws-actions/amazon-ecr-login@v2
 
       - run: |
           aws ecr describe-repositories --repository-name retail-store-checkout || \
           aws ecr create-repository --repository-name retail-store-checkout
 
-          docker build -t $ECR_REGISTRY/retail-store-checkout:${{ github.sha }} .
-          docker tag $ECR_REGISTRY/retail-store-checkout:${{ github.sha }} $ECR_REGISTRY/retail-store-checkout:latest
-          docker push $ECR_REGISTRY/retail-store-checkout:${{ github.sha }}
-          docker push $ECR_REGISTRY/retail-store-checkout:latest
+          docker buildx build \
+            --platform linux/amd64 \
+            -t $ECR_REGISTRY/retail-store-checkout:${{ github.sha }} \
+            -t $ECR_REGISTRY/retail-store-checkout:latest \
+            --push .
         working-directory: src/checkout
 
   # ======================================================
   # ORDERS (JAVA)
   # ======================================================
   build-orders:
-    needs: detect-changes
+    needs: [detect-changes, setup-docker]
     if: needs.detect-changes.outputs.orders == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-java@v4
         with:
           java-version: "21"
           distribution: temurin
-          cache: maven
 
       - run: chmod +x mvnw && ./mvnw clean package -DskipTests
         working-directory: src/orders
 
       - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
       - uses: aws-actions/amazon-ecr-login@v2
 
       - run: |
           aws ecr describe-repositories --repository-name retail-store-orders || \
           aws ecr create-repository --repository-name retail-store-orders
 
-          docker build -t $ECR_REGISTRY/retail-store-orders:${{ github.sha }} .
-          docker tag $ECR_REGISTRY/retail-store-orders:${{ github.sha }} $ECR_REGISTRY/retail-store-orders:latest
-          docker push $ECR_REGISTRY/retail-store-orders:${{ github.sha }}
-          docker push $ECR_REGISTRY/retail-store-orders:latest
+          docker buildx build \
+            --platform linux/amd64 \
+            -t $ECR_REGISTRY/retail-store-orders:${{ github.sha }} \
+            -t $ECR_REGISTRY/retail-store-orders:latest \
+            --push .
         working-directory: src/orders
 
   # ======================================================
-  # UI (JAVA)  ✅ FIXED & SEPARATE
+  # UI (JAVA)
   # ======================================================
   build-ui:
-    needs: detect-changes
+    needs: [detect-changes, setup-docker]
     if: needs.detect-changes.outputs.ui == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-java@v4
         with:
           java-version: "21"
           distribution: temurin
-          cache: maven
 
       - run: chmod +x mvnw && ./mvnw clean package -DskipTests
         working-directory: src/ui
 
       - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
       - uses: aws-actions/amazon-ecr-login@v2
 
       - run: |
           aws ecr describe-repositories --repository-name retail-store-ui || \
           aws ecr create-repository --repository-name retail-store-ui
 
-          docker build -t $ECR_REGISTRY/retail-store-ui:${{ github.sha }} .
-          docker tag $ECR_REGISTRY/retail-store-ui:${{ github.sha }} $ECR_REGISTRY/retail-store-ui:latest
-          docker push $ECR_REGISTRY/retail-store-ui:${{ github.sha }}
-          docker push $ECR_REGISTRY/retail-store-ui:latest
+          docker buildx build \
+            --platform linux/amd64 \
+            -t $ECR_REGISTRY/retail-store-ui:${{ github.sha }} \
+            -t $ECR_REGISTRY/retail-store-ui:latest \
+            --push .
         working-directory: src/ui
 
   # ======================================================
@@ -231,10 +219,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
 
       - run: |
           for repo in \
