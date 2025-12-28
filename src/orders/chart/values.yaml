@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: 859092166102.dkr.ecr.us-west-2.amazonaws.com/retail-store-orders
+  repository: 859092166102.dkr.ecr.us-east-1.amazonaws.com/retail-store-orders
   pullPolicy: Always
   # Updated automatically by GitHub Actions (GitOps)
   tag: "571aaf53caa98dbf86950e808f4bf63448bab953"

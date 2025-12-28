@@ -23,15 +23,15 @@ graph LR
     B --> C{Target Branch?}
     C -->|Simple Deployment| D[main branch]
     C -->|Production| E[gitops branch]
-    
+
     D --> F[Manual Deployment]
     D --> G[Public ECR Images]
     D --> H[Umbrella Chart]
-    
+
     E --> I[GitHub Actions]
     E --> J[Private ECR Images]
     E --> K[Individual Apps]
-    
+
     I --> L[Build & Push]
     L --> M[Update Helm Charts]
     M --> N[ArgoCD Sync]
@@ -40,9 +40,11 @@ graph LR
 ## 🌐 Public Application (Main Branch)
 
 ### **Purpose**
+
 Simple deployment with public container images for demos, learning, and quick testing.
 
 ### **Characteristics**
+
 ```yaml
 ✅ Branch: main
 ✅ Images: Public ECR (stable versions)
@@ -54,6 +56,7 @@ Simple deployment with public container images for demos, learning, and quick te
 ```
 
 ### **Image Configuration**
+
 ```yaml
 # All services use public ECR images
 ui: public.ecr.aws/aws-containers/retail-store-sample-ui:1.2.2
@@ -71,6 +74,7 @@ dynamodb-local: public.ecr.aws/aws-dynamodb-local/aws-dynamodb-local:1.25.1
 ```
 
 ### **ArgoCD Configuration**
+
 ```yaml
 # Uses umbrella chart for simplified management
 apiVersion: argoproj.io/v1alpha1
@@ -86,9 +90,11 @@ spec:
 ## 🏭 Production (GitOps Branch)
 
 ### **Purpose**
+
 Full production workflow with automated CI/CD pipeline and private container registry integration.
 
 ### **Characteristics**
+
 ```yaml
 ✅ Branch: gitops
 ✅ Images: Private ECR (auto-updated)
@@ -100,6 +106,7 @@ Full production workflow with automated CI/CD pipeline and private container reg
 ```
 
 ### **Image Configuration**
+
 ```yaml
 # Services use private ECR (updated by workflow)
 ui: {AWS_ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/retail-store-ui:{COMMIT_HASH}
@@ -117,10 +124,11 @@ dynamodb-local: public.ecr.aws/aws-dynamodb-local/aws-dynamodb-local:1.25.1
 ```
 
 ### **ArgoCD Configuration**
+
 ```yaml
 # Uses individual applications for granular control
 - retail-store-ui
-- retail-store-catalog  
+- retail-store-catalog
 - retail-store-cart
 - retail-store-checkout
 - retail-store-orders
@@ -134,16 +142,18 @@ spec:
 ## 🔧 GitHub Actions Setup
 
 ### **Required Secrets**
+
 Configure these secrets in your GitHub repository settings:
 
-| Secret Name | Description | Example |
-|-------------|-------------|---------|
-| `AWS_ACCESS_KEY_ID` | AWS Access Key for ECR/EKS access | `AKIA...` |
-| `AWS_SECRET_ACCESS_KEY` | AWS Secret Key | `wJalrXUt...` |
-| `AWS_REGION` | AWS Region for resources | `us-west-2` |
-| `AWS_ACCOUNT_ID` | AWS Account ID for ECR URLs | `123456789012` |
+| Secret Name             | Description                       | Example        |
+| ----------------------- | --------------------------------- | -------------- |
+| `AWS_ACCESS_KEY_ID`     | AWS Access Key for ECR/EKS access | `AKIA...`      |
+| `AWS_SECRET_ACCESS_KEY` | AWS Secret Key                    | `wJalrXUt...`  |
+| `AWS_REGION`            | AWS Region for resources          | `us-east-1`    |
+| `AWS_ACCOUNT_ID`        | AWS Account ID for ECR URLs       | `123456789012` |
 
 ### **IAM Permissions Required**
+
 ```json
 {
   "Version": "2012-10-17",
@@ -171,6 +181,7 @@ Configure these secrets in your GitHub repository settings:
 ## 🔄 Deployment Workflows
 
 ### **Public Application Workflow**
+
 ```bash
 1. Developer commits to main branch
 2. Manual deployment required
@@ -180,6 +191,7 @@ Configure these secrets in your GitHub repository settings:
 ```
 
 ### **Production Workflow**
+
 ```bash
 1. Developer commits to gitops branch (src/ directory)
 2. GitHub Actions detects changes
@@ -192,6 +204,7 @@ Configure these secrets in your GitHub repository settings:
 ```
 
 ### **Change Detection Logic**
+
 ```yaml
 # Only builds services with actual code changes
 Changed files in src/ui/ → Build ui service
@@ -209,22 +222,25 @@ workflow_dispatch → Build all services
 ### **Service Images vs Infrastructure Images**
 
 #### **Service Images (Updated by Workflow)**
+
 - **ui, catalog, cart, checkout, orders** - Application services
 - **Source**: Private ECR repositories
 - **Updates**: Automated via GitHub Actions
 - **Versioning**: Git commit hash (7 characters)
 
 #### **Infrastructure Images (Preserved by Workflow)**
+
 - **mysql, redis, postgresql, rabbitmq, dynamodb-local** - Database/messaging
 - **Source**: Public ECR/Docker Hub
 - **Updates**: Manual only (stable versions)
 - **Versioning**: Semantic versioning
 
 ### **Workflow Protection Logic**
+
 ```bash
 # AWK script ensures only main service image is updated
 /^image:/ { in_main_image = 1 }  # Target first image: section only
-in_main_image && /repository:/ && !updated_repo { 
+in_main_image && /repository:/ && !updated_repo {
   # Update only if we haven't updated repository yet
 }
 /^[a-zA-Z]/ && !/^image:/ { in_main_image = 0 }  # Exit image section
@@ -233,6 +249,7 @@ in_main_image && /repository:/ && !updated_repo {
 ## 🔧 Troubleshooting
 
 ### **SharedResourceWarning in ArgoCD**
+
 ```yaml
 # Problem: Same resources deployed by multiple applications
 Error: ClusterIssuer/letsencrypt-prod is part of applications argocd/retail-store-app and retail-store-ui
@@ -243,9 +260,10 @@ Production branch: Use individual applications only
 ```
 
 ### **Image Pull Errors**
+
 ```yaml
 # Problem: Wrong ECR repository or missing images
-Error: Failed to pull image "123456789012.dkr.ecr.us-west-2.amazonaws.com/retail-store-ui:abc1234"
+Error: Failed to pull image "123456789012.dkr.ecr.us-east-1.amazonaws.com/retail-store-ui:abc1234"
 
 # Solutions:
 1. Check ECR repository exists (workflow creates automatically)
@@ -255,6 +273,7 @@ Error: Failed to pull image "123456789012.dkr.ecr.us-west-2.amazonaws.com/retail
 ```
 
 ### **Workflow Not Triggering**
+
 ```yaml
 # Problem: GitHub Actions not running on commits
 # Solutions:
@@ -265,6 +284,7 @@ Error: Failed to pull image "123456789012.dkr.ecr.us-west-2.amazonaws.com/retail
 ```
 
 ### **Infrastructure Images Being Overwritten**
+
 ```yaml
 # Problem: MySQL/Redis images pointing to private ECR
 # Solution: Workflow should preserve infrastructure images
@@ -274,6 +294,7 @@ Error: Failed to pull image "123456789012.dkr.ecr.us-west-2.amazonaws.com/retail
 ## 👨‍💻 Development Workflow
 
 ### **For Public Application Changes (Main Branch)**
+
 ```bash
 1. git checkout main
 2. Make changes to application code
@@ -283,6 +304,7 @@ Error: Failed to pull image "123456789012.dkr.ecr.us-west-2.amazonaws.com/retail
 ```
 
 ### **For Production Changes (GitOps Branch)**
+
 ```bash
 1. git checkout gitops
 2. Make changes to application code in src/ directory
@@ -295,13 +317,14 @@ Error: Failed to pull image "123456789012.dkr.ecr.us-west-2.amazonaws.com/retail
 ```
 
 ### **Switching Between Branches**
+
 ```bash
 # To use main branch (public application)
 kubectl delete -f argocd/applications/ -n argocd  # Remove production apps
 git checkout main
 kubectl apply -f argocd/applications/retail-store-app.yaml -n argocd
 
-# To use gitops branch (production)  
+# To use gitops branch (production)
 kubectl delete application retail-store-app -n argocd  # Remove umbrella app
 git checkout gitops
 kubectl apply -f argocd/applications/ -n argocd  # Apply individual apps
@@ -309,33 +332,36 @@ kubectl apply -f argocd/applications/ -n argocd  # Apply individual apps
 
 ## 📊 Branch Comparison
 
-| Feature | Public Application (Main) | Production (GitOps) |
-|---------|---------------------------|---------------------|
-| **Target Environment** | Demos, Learning | Production |
-| **Image Source** | Public ECR | Private ECR |
-| **Image Updates** | Manual | Automated |
-| **Deployment Method** | Umbrella Chart | Individual Apps |
-| **CI/CD Pipeline** | None | GitHub Actions |
-| **Change Detection** | Manual | Automatic |
-| **Rollback Strategy** | Manual | Git revert |
-| **Infrastructure Images** | Public (stable) | Public (preserved) |
-| **Service Images** | Public (stable) | Private (dynamic) |
+| Feature                   | Public Application (Main) | Production (GitOps) |
+| ------------------------- | ------------------------- | ------------------- |
+| **Target Environment**    | Demos, Learning           | Production          |
+| **Image Source**          | Public ECR                | Private ECR         |
+| **Image Updates**         | Manual                    | Automated           |
+| **Deployment Method**     | Umbrella Chart            | Individual Apps     |
+| **CI/CD Pipeline**        | None                      | GitHub Actions      |
+| **Change Detection**      | Manual                    | Automatic           |
+| **Rollback Strategy**     | Manual                    | Git revert          |
+| **Infrastructure Images** | Public (stable)           | Public (preserved)  |
+| **Service Images**        | Public (stable)           | Private (dynamic)   |
 
 ## 🎯 Best Practices
 
 ### **When to Use Public Application (Main Branch)**
+
 - ✅ Demos and presentations
 - ✅ Learning and experimentation
 - ✅ Quick testing and prototyping
 - ✅ Simple deployments without CI/CD needs
 
 ### **When to Use Production (GitOps Branch)**
+
 - ✅ Production deployments
 - ✅ Enterprise environments
 - ✅ Automated testing pipelines
 - ✅ Continuous deployment workflows
 
 ### **Security Considerations**
+
 - 🔒 Use IAM roles with minimal permissions
 - 🔒 Rotate AWS access keys regularly
 - 🔒 Enable ECR image scanning

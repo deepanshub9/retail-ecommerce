@@ -54,7 +54,7 @@ terraform apply
 
 ```bash
 # Update kubeconfig (replace with your region and cluster name)
-aws eks update-kubeconfig --region us-west-2 --name retail-store
+aws eks update-kubeconfig --region us-east-1 --name retail-store
 ```
 
 ### 5. Access ArgoCD
@@ -74,25 +74,27 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 ## 📋 What Gets Deployed
 
 ### Core Infrastructure
+
 - **VPC** with public and private subnets across 3 AZs
 - **EKS Cluster** with Auto Mode enabled
 - **Security Groups** with appropriate rules
 
 ### Add-ons
+
 - **NGINX Ingress Controller** for load balancing
 - **Cert Manager** for SSL certificate management
 - **ArgoCD** for GitOps deployment
 
 ### Applications (via ArgoCD)
+
 - Retail Store microservices (UI, Catalog, Cart, Orders, Checkout)
 
 ## 🔧 Customization
 
 ### Variables
 
-
 ```hcl
-aws_region                = "us-west-2"
+aws_region                = "us-east-1"
 cluster_name              = "retail-store"        # Will have random suffix added
 environment               = "dev"
 kubernetes_version        = "1.33"
@@ -104,6 +106,7 @@ enable_monitoring         = false   # Set to true to enable monitoring
 ### Conflict Prevention
 
 This configuration automatically prevents resource conflicts by:
+
 - Adding a random 4-character suffix to cluster names
 - Using unique KMS key aliases
 - Ensuring resource names don't collide with previous deployments
@@ -157,4 +160,3 @@ terraform destroy
 ```
 
 **Note**: This will delete all resources including the EKS cluster and VPC. Make sure to backup any important data first.
-

@@ -18,8 +18,8 @@ permissions:
   contents: write
 
 env:
-  AWS_REGION: us-west-2
-  ECR_REGISTRY: 859092166102.dkr.ecr.us-west-2.amazonaws.com
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 859092166102.dkr.ecr.us-east-1.amazonaws.com
   IMAGES_TO_KEEP: 3
 
 # =============================================================================
@@ -51,9 +51,9 @@ jobs:
             orders:   [ "src/orders/**" ]
             ui:       [ "src/ui/**" ]
 
-# =============================================================================
-# HELM UMBRELLA CHART LINT
-# =============================================================================
+  # =============================================================================
+  # HELM UMBRELLA CHART LINT
+  # =============================================================================
   build-app:
     needs: detect-changes
     if: needs.detect-changes.outputs.app == 'true'
@@ -66,9 +66,9 @@ jobs:
       - run: helm lint .
         working-directory: src/app/chart
 
-# =============================================================================
-# CART (JAVA)
-# =============================================================================
+  # =============================================================================
+  # CART (JAVA)
+  # =============================================================================
   build-cart:
     needs: detect-changes
     if: needs.detect-changes.outputs.cart == 'true'
@@ -94,9 +94,9 @@ jobs:
           docker push --all-tags $ECR_REGISTRY/retail-store-cart
         working-directory: src/cart
 
-# =============================================================================
-# CATALOG (GO)
-# =============================================================================
+  # =============================================================================
+  # CATALOG (GO)
+  # =============================================================================
   build-catalog:
     needs: detect-changes
     if: needs.detect-changes.outputs.catalog == 'true'
@@ -120,9 +120,9 @@ jobs:
           docker push --all-tags $ECR_REGISTRY/retail-store-catalog
         working-directory: src/catalog
 
-# =============================================================================
-# CHECKOUT (NODE)
-# =============================================================================
+  # =============================================================================
+  # CHECKOUT (NODE)
+  # =============================================================================
   build-checkout:
     needs: detect-changes
     if: needs.detect-changes.outputs.checkout == 'true'
@@ -146,9 +146,9 @@ jobs:
           docker push --all-tags $ECR_REGISTRY/retail-store-checkout
         working-directory: src/checkout
 
-# =============================================================================
-# ORDERS + UI (JAVA)
-# =============================================================================
+  # =============================================================================
+  # ORDERS + UI (JAVA)
+  # =============================================================================
   build-orders:
     needs: detect-changes
     if: needs.detect-changes.outputs.orders == 'true'
@@ -174,12 +174,11 @@ jobs:
           docker push --all-tags $ECR_REGISTRY/retail-store-orders
         working-directory: src/orders
 
-# =============================================================================
-# CLEANUP OLD ECR IMAGES
-# =============================================================================
+  # =============================================================================
+  # CLEANUP OLD ECR IMAGES
+  # =============================================================================
   cleanup-ecr-images:
-    needs:
-      [build-cart, build-catalog, build-checkout, build-orders]
+    needs: [build-cart, build-catalog, build-checkout, build-orders]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -189,9 +188,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-# =============================================================================
-# UPDATE HELM VALUES (GITOPS SAFE)
-# =============================================================================
+  # =============================================================================
+  # UPDATE HELM VALUES (GITOPS SAFE)
+  # =============================================================================
   update-helm-values:
     needs:
       [detect-changes, build-cart, build-catalog, build-checkout, build-orders]
@@ -209,17 +208,25 @@ jobs:
           git commit -m "chore: update image tags [skip ci]" || echo "No changes"
           git push
 
-# =============================================================================
-# SUMMARY
-# =============================================================================
+  # =============================================================================
+  # SUMMARY
+  # =============================================================================
   summary:
     needs:
-      [detect-changes, build-app, build-cart, build-catalog, build-checkout, build-orders, update-helm-values]
+      [
+        detect-changes,
+        build-app,
+        build-cart,
+        build-catalog,
+        build-checkout,
+        build-orders,
+        update-helm-values,
+      ]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - run: |
           echo "## 🚀 Retail Store CI/CD Summary" >> $GITHUB_STEP_SUMMARY
           echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Region: us-west-2" >> $GITHUB_STEP_SUMMARY
+          echo "- Region: us-east-1" >> $GITHUB_STEP_SUMMARY
           echo "- GitOps: Helm values updated" >> $GITHUB_STEP_SUMMARY
