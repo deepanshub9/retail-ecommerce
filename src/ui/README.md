@@ -6,7 +6,7 @@
 | -------- | ----------- |
 | Java     | N/A         |
 
-## Test commit by deepanshub9
+## Test commit by deep
 
 This service provides the frontend for the retail store, serving the HTML UI and aggregating calls to the backend API components.
 
