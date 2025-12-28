@@ -11,7 +11,7 @@ on:
       - "src/**"
 
 concurrency:
-  group: helm-update-${{ github.ref }}
+  group: retail-store-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -19,6 +19,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: 859092166102
   ECR_REGISTRY: 859092166102.dkr.ecr.us-east-1.amazonaws.com
   IMAGES_TO_KEEP: 3
 
@@ -29,7 +30,6 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      app: ${{ steps.changes.outputs.app }}
       cart: ${{ steps.changes.outputs.cart }}
       catalog: ${{ steps.changes.outputs.catalog }}
       checkout: ${{ steps.changes.outputs.checkout }}
@@ -44,7 +44,6 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            app:      [ "src/app/**" ]
             cart:     [ "src/cart/**" ]
             catalog:  [ "src/catalog/**" ]
             checkout: [ "src/checkout/**" ]
@@ -52,181 +51,167 @@ jobs:
             ui:       [ "src/ui/**" ]
 
   # =============================================================================
-  # HELM UMBRELLA CHART LINT
+  # COMMON BUILD TEMPLATE
   # =============================================================================
-  build-app:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.app == 'true'
+  build-and-push:
+    name: Build & Push ${{ matrix.service }}
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: azure/setup-helm@v4
-      - run: helm dependency update
-        working-directory: src/app/chart
-      - run: helm lint .
-        working-directory: src/app/chart
+    needs: detect-changes
+    if: needs.detect-changes.outputs[matrix.service] == 'true'
+    strategy:
+      matrix:
+        include:
+          - service: cart
+            dir: src/cart
+            type: java
+          - service: catalog
+            dir: src/catalog
+            type: go
+          - service: checkout
+            dir: src/checkout
+            type: node
+          - service: orders
+            dir: src/orders
+            type: java
+          - service: ui
+            dir: src/ui
+            type: java
 
-  # =============================================================================
-  # CART (JAVA)
-  # =============================================================================
-  build-cart:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.cart == 'true'
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+
+      # ---------- Build ----------
+      - name: Build Java
+        if: matrix.type == 'java'
+        uses: actions/setup-java@v4
         with:
           java-version: "21"
           distribution: temurin
           cache: maven
-      - run: chmod +x mvnw && ./mvnw clean package -DskipTests
-        working-directory: src/cart
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      - uses: aws-actions/amazon-ecr-login@v2
-      - run: |
-          docker build -t $ECR_REGISTRY/retail-store-cart:${{ github.sha }} .
-          docker tag $ECR_REGISTRY/retail-store-cart:${{ github.sha }} $ECR_REGISTRY/retail-store-cart:latest
-          docker push --all-tags $ECR_REGISTRY/retail-store-cart
-        working-directory: src/cart
 
-  # =============================================================================
-  # CATALOG (GO)
-  # =============================================================================
-  build-catalog:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.catalog == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: Build Java App
+        if: matrix.type == 'java'
+        run: chmod +x mvnw && ./mvnw clean package -DskipTests
+        working-directory: ${{ matrix.dir }}
+
+      - name: Build Go App
+        if: matrix.type == 'go'
+        uses: actions/setup-go@v5
         with:
           go-version: "1.21"
-      - run: go build -o main .
-        working-directory: src/catalog
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      - uses: aws-actions/amazon-ecr-login@v2
-      - run: |
-          docker build -t $ECR_REGISTRY/retail-store-catalog:${{ github.sha }} .
-          docker tag $ECR_REGISTRY/retail-store-catalog:${{ github.sha }} $ECR_REGISTRY/retail-store-catalog:latest
-          docker push --all-tags $ECR_REGISTRY/retail-store-catalog
-        working-directory: src/catalog
 
-  # =============================================================================
-  # CHECKOUT (NODE)
-  # =============================================================================
-  build-checkout:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.checkout == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Compile Go
+        if: matrix.type == 'go'
+        run: go build -o app
+        working-directory: ${{ matrix.dir }}
+
+      - name: Build Node App
+        if: matrix.type == 'node'
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: npm install && npm run build --if-present
-        working-directory: src/checkout
+
+      - name: Build Node
+        if: matrix.type == 'node'
+        run: npm install && npm run build --if-present
+        working-directory: ${{ matrix.dir }}
+
+      # ---------- AWS ----------
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
       - uses: aws-actions/amazon-ecr-login@v2
-      - run: |
-          docker build -t $ECR_REGISTRY/retail-store-checkout:${{ github.sha }} .
-          docker tag $ECR_REGISTRY/retail-store-checkout:${{ github.sha }} $ECR_REGISTRY/retail-store-checkout:latest
-          docker push --all-tags $ECR_REGISTRY/retail-store-checkout
-        working-directory: src/checkout
+
+      # ---------- ECR ----------
+      - name: Create ECR Repo if missing
+        run: |
+          aws ecr describe-repositories \
+            --repository-names retail-store-${{ matrix.service }} \
+            --region $AWS_REGION || \
+          aws ecr create-repository \
+            --repository-name retail-store-${{ matrix.service }} \
+            --region $AWS_REGION
+
+      - name: Build & Push Docker Image
+        run: |
+          docker build -t $ECR_REGISTRY/retail-store-${{ matrix.service }}:${{ github.sha }} .
+          docker tag  $ECR_REGISTRY/retail-store-${{ matrix.service }}:${{ github.sha }} \
+                      $ECR_REGISTRY/retail-store-${{ matrix.service }}:latest
+          docker push $ECR_REGISTRY/retail-store-${{ matrix.service }}:${{ github.sha }}
+          docker push $ECR_REGISTRY/retail-store-${{ matrix.service }}:latest
+        working-directory: ${{ matrix.dir }}
 
   # =============================================================================
-  # ORDERS + UI (JAVA)
+  # CLEANUP OLD ECR IMAGES (KEEP LAST 3)
   # =============================================================================
-  build-orders:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.orders == 'true'
+  cleanup-ecr:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          java-version: "21"
-          distribution: temurin
-          cache: maven
-      - run: chmod +x mvnw && ./mvnw clean package -DskipTests
-        working-directory: src/orders
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      - uses: aws-actions/amazon-ecr-login@v2
-      - run: |
-          docker build -t $ECR_REGISTRY/retail-store-orders:${{ github.sha }} .
-          docker tag $ECR_REGISTRY/retail-store-orders:${{ github.sha }} $ECR_REGISTRY/retail-store-orders:latest
-          docker push --all-tags $ECR_REGISTRY/retail-store-orders
-        working-directory: src/orders
-
-  # =============================================================================
-  # CLEANUP OLD ECR IMAGES
-  # =============================================================================
-  cleanup-ecr-images:
-    needs: [build-cart, build-catalog, build-checkout, build-orders]
+    needs: build-and-push
     if: always()
-    runs-on: ubuntu-latest
     steps:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Cleanup old images
+        run: |
+          for repo in cart catalog checkout orders ui; do
+            echo "Cleaning retail-store-$repo"
+            aws ecr describe-images \
+              --repository-name retail-store-$repo \
+              --query 'sort_by(imageDetails,&imagePushedAt)[0:-3].imageDigest' \
+              --output text | tr '\t' '\n' | while read digest; do
+                aws ecr batch-delete-image \
+                  --repository-name retail-store-$repo \
+                  --image-ids imageDigest=$digest || true
+              done
+          done
 
   # =============================================================================
   # UPDATE HELM VALUES (GITOPS SAFE)
   # =============================================================================
   update-helm-values:
-    needs:
-      [detect-changes, build-cart, build-catalog, build-checkout, build-orders]
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - run: |
+
+      - name: Configure Git
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions@github.com"
-          sed -i "s|tag: .*|tag: \"${{ github.sha }}\"|" src/*/chart/values.yaml
+
+      - name: Update Helm image tags
+        run: |
+          for svc in cart catalog checkout orders ui; do
+            sed -i "s|tag: .*|tag: \"${{ github.sha }}\"|" src/$svc/chart/values.yaml
+          done
+
+      - name: Commit & Push
+        run: |
           git add src/*/chart/values.yaml
-          git commit -m "chore: update image tags [skip ci]" || echo "No changes"
+          git diff --staged --quiet || git commit -m "chore: update image tags [skip ci]"
           git push
 
   # =============================================================================
   # SUMMARY
   # =============================================================================
   summary:
-    needs:
-      [
-        detect-changes,
-        build-app,
-        build-cart,
-        build-catalog,
-        build-checkout,
-        build-orders,
-        update-helm-values,
-      ]
-    if: always()
     runs-on: ubuntu-latest
+    needs: [build-and-push, cleanup-ecr, update-helm-values]
+    if: always()
     steps:
       - run: |
           echo "## 🚀 Retail Store CI/CD Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "- Region: us-east-1" >> $GITHUB_STEP_SUMMARY
-          echo "- GitOps: Helm values updated" >> $GITHUB_STEP_SUMMARY
+          echo "- Images pushed with latest + commit SHA" >> $GITHUB_STEP_SUMMARY
+          echo "- Only last 3 images kept per service" >> $GITHUB_STEP_SUMMARY
+          echo "- Helm values updated for Argo CD" >> $GITHUB_STEP_SUMMARY
