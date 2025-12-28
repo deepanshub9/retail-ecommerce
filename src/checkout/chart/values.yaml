@@ -8,7 +8,7 @@ image:
   repository: 859092166102.dkr.ecr.us-east-1.amazonaws.com/retail-store-checkout
   pullPolicy: Always
   # Updated automatically by GitHub Actions (GitOps)
-  tag: "571aaf53caa98dbf86950e808f4bf63448bab953"
+tag: "latest"
 
 imagePullSecrets: []
 
