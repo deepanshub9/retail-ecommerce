@@ -8,7 +8,7 @@
 | -------- | ----------- |
 | Java     | MySQL       |
 
-## Test commit by deepanshub9
+## Test commit by deep
 
 This service provides an API for storing orders. Data is stored in MySQL.
 
